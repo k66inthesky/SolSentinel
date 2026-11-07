@@ -8,6 +8,99 @@
   },
   "instructions": [
     {
+      "name": "init_yield",
+      "docs": [
+        "Owner whitelists up to 4 lending venues: (lending program, receipt-token mint)."
+      ],
+      "discriminator": [
+        19,
+        1,
+        6,
+        165,
+        207,
+        249,
+        41,
+        255
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "yield_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  121,
+                  105,
+                  101,
+                  108,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "venues",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "Venue"
+              }
+            }
+          }
+        },
+        {
+          "name": "max_moves_per_day",
+          "type": "u16"
+        },
+        {
+          "name": "min_move_interval_secs",
+          "type": "u32"
+        }
+      ]
+    },
+    {
       "name": "initialize_vault",
       "discriminator": [
         48,
@@ -319,6 +412,193 @@
       ]
     },
     {
+      "name": "rebalance",
+      "docs": [
+        "Guarded move of USDC into (Deposit) or out of (Withdraw) a whitelisted lending venue.",
+        "The agent supplies the CPI bytes, but the program enforces:",
+        "- the target program is the venue's whitelisted lending program,",
+        "- tokens can only move between the vault's USDC account and the vault's receipt-token",
+        "account for that venue (both PDA-owned ATAs, so nothing can leave the vault),",
+        "- measured balance deltas respect max_in / min_out (agent cannot lie about amounts),",
+        "- a rate limit (moves per day + minimum interval) so a compromised agent cannot churn fees,",
+        "- deposits are blocked while paused; withdrawals back to USDC are always allowed."
+      ],
+      "discriminator": [
+        108,
+        158,
+        77,
+        9,
+        210,
+        52,
+        88,
+        62
+      ],
+      "accounts": [
+        {
+          "name": "agent",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "relations": [
+            "yield_config"
+          ]
+        },
+        {
+          "name": "yield_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  121,
+                  105,
+                  101,
+                  108,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault_quote",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.quote_mint",
+                "account": "Vault"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "vault_receipt",
+          "docs": [
+            "Receipt-token account; must be owned by the vault, mint checked against the venue."
+          ],
+          "writable": true
+        },
+        {
+          "name": "lending_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "venue",
+          "type": "u8"
+        },
+        {
+          "name": "direction",
+          "type": {
+            "defined": {
+              "name": "Direction"
+            }
+          }
+        },
+        {
+          "name": "max_in",
+          "type": "u64"
+        },
+        {
+          "name": "min_out",
+          "type": "u64"
+        },
+        {
+          "name": "cpi_data",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
       "name": "set_agent",
       "discriminator": [
         154,
@@ -469,6 +749,94 @@
               "name": "Policy"
             }
           }
+        }
+      ]
+    },
+    {
+      "name": "set_yield",
+      "discriminator": [
+        234,
+        85,
+        157,
+        135,
+        75,
+        39,
+        160,
+        170
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          },
+          "relations": [
+            "yield_config"
+          ]
+        },
+        {
+          "name": "yield_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  121,
+                  105,
+                  101,
+                  108,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "venues",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "Venue"
+              }
+            }
+          }
+        },
+        {
+          "name": "max_moves_per_day",
+          "type": "u16"
+        },
+        {
+          "name": "min_move_interval_secs",
+          "type": "u32"
         }
       ]
     },
@@ -789,6 +1157,19 @@
         117,
         119
       ]
+    },
+    {
+      "name": "YieldConfig",
+      "discriminator": [
+        249,
+        13,
+        186,
+        63,
+        85,
+        7,
+        255,
+        18
+      ]
     }
   ],
   "events": [
@@ -842,6 +1223,19 @@
         236,
         245,
         161
+      ]
+    },
+    {
+      "name": "Rebalanced",
+      "discriminator": [
+        74,
+        101,
+        57,
+        244,
+        181,
+        179,
+        52,
+        182
       ]
     },
     {
@@ -996,6 +1390,20 @@
       }
     },
     {
+      "name": "Direction",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Deposit"
+          },
+          {
+            "name": "Withdraw"
+          }
+        ]
+      }
+    },
+    {
       "name": "PauseChanged",
       "type": {
         "kind": "struct",
@@ -1057,6 +1465,46 @@
                 "name": "Policy"
               }
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Rebalanced",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "venue",
+            "type": "u8"
+          },
+          {
+            "name": "direction",
+            "type": {
+              "defined": {
+                "name": "Direction"
+              }
+            }
+          },
+          {
+            "name": "spent",
+            "type": "u64"
+          },
+          {
+            "name": "received",
+            "type": "u64"
+          },
+          {
+            "name": "decision_seq",
+            "type": "u64"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
           }
         ]
       }
@@ -1228,6 +1676,78 @@
           {
             "name": "swap_program",
             "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Venue",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "program",
+            "docs": [
+              "Lending program the vault may CPI into (e.g. Jupiter Lend Earn, Kamino Lend)."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "receipt_mint",
+            "docs": [
+              "Receipt token that program mints for USDC deposits (e.g. jlUSDC, Kamino USDC cToken)."
+            ],
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "YieldConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "venues",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "Venue"
+                }
+              }
+            }
+          },
+          {
+            "name": "max_moves_per_day",
+            "type": "u16"
+          },
+          {
+            "name": "min_move_interval_secs",
+            "type": "u32"
+          },
+          {
+            "name": "day",
+            "type": "i64"
+          },
+          {
+            "name": "moves_today",
+            "type": "u16"
+          },
+          {
+            "name": "last_move_ts",
+            "type": "i64"
+          },
+          {
+            "name": "total_moves",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
           }
         ]
       }

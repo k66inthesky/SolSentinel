@@ -13,7 +13,9 @@
     "agent": "tsx agent/src/main.ts",
     "test": "tsx --test agent/test/*.test.ts",
     "demo:guard": "tsx agent/src/guard-demo.ts",
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "validator:fork": "scripts/fork-validator.sh",
+    "test:fork": "tsx --test agent/test/yield-fork.test.ts"
   },
   "devDependencies": {
     "@types/bn.js": "^5.2.0",
@@ -24,6 +26,7 @@
   "dependencies": {
     "@anchor-lang/core": "^1.2.2",
     "@anthropic-ai/sdk": "^1.6.0",
+    "@jup-ag/lend": "^0.4.0",
     "@solana/spl-token": "^0.4.15",
     "@solana/web3.js": "^1.99.0",
     "bs58": "^6.0.0",

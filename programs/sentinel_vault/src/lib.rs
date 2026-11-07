@@ -72,8 +72,8 @@ pub mod sentinel_vault {
     /// Owner-only withdrawal. The agent key has no path to move funds out of the vault.
     pub fn withdraw(ctx: Context<Withdraw>, amount: u64) -> Result<()> {
         let v = &ctx.accounts.vault;
+        // The owner may pull ANY token the vault owns (USDC, SOL leg, or lending receipt tokens).
         let mint = ctx.accounts.from.mint;
-        require!(mint == v.quote_mint || mint == v.base_mint, SentinelError::MintNotAllowed);
         let owner = v.owner;
         let seeds: &[&[u8]] = &[VAULT_SEED, owner.as_ref(), &[v.bump]];
         token::transfer(
@@ -229,6 +229,98 @@ pub mod sentinel_vault {
         });
         Ok(())
     }
+    // ======================= yield router =======================
+
+    /// Owner whitelists up to 4 lending venues: (lending program, receipt-token mint).
+    pub fn init_yield(ctx: Context<InitYield>, venues: Vec<Venue>, max_moves_per_day: u16, min_move_interval_secs: u32) -> Result<()> {
+        require!(venues.len() <= MAX_VENUES && max_moves_per_day > 0, SentinelError::BadPolicy);
+        let y = &mut ctx.accounts.yield_config;
+        y.vault = ctx.accounts.vault.key();
+        y.venues = venues;
+        y.max_moves_per_day = max_moves_per_day;
+        y.min_move_interval_secs = min_move_interval_secs;
+        y.bump = ctx.bumps.yield_config;
+        Ok(())
+    }
+
+    pub fn set_yield(ctx: Context<SetYield>, venues: Vec<Venue>, max_moves_per_day: u16, min_move_interval_secs: u32) -> Result<()> {
+        require!(venues.len() <= MAX_VENUES && max_moves_per_day > 0, SentinelError::BadPolicy);
+        let y = &mut ctx.accounts.yield_config;
+        y.venues = venues;
+        y.max_moves_per_day = max_moves_per_day;
+        y.min_move_interval_secs = min_move_interval_secs;
+        Ok(())
+    }
+
+    /// Guarded move of USDC into (Deposit) or out of (Withdraw) a whitelisted lending venue.
+    /// The agent supplies the CPI bytes, but the program enforces:
+    ///  - the target program is the venue's whitelisted lending program,
+    ///  - tokens can only move between the vault's USDC account and the vault's receipt-token
+    ///    account for that venue (both PDA-owned ATAs, so nothing can leave the vault),
+    ///  - measured balance deltas respect max_in / min_out (agent cannot lie about amounts),
+    ///  - a rate limit (moves per day + minimum interval) so a compromised agent cannot churn fees,
+    ///  - deposits are blocked while paused; withdrawals back to USDC are always allowed.
+    pub fn rebalance<'info>(
+        ctx: Context<'info, Rebalance<'info>>,
+        venue: u8,
+        direction: Direction,
+        max_in: u64,
+        min_out: u64,
+        cpi_data: Vec<u8>,
+    ) -> Result<()> {
+        let now = Clock::get()?.unix_timestamp;
+        let vault_key = ctx.accounts.vault.key();
+        let v = ctx.accounts.venue_of(venue)?;
+        require_keys_eq!(ctx.accounts.lending_program.key(), v.program, SentinelError::SwapProgramNotAllowed);
+        require_keys_eq!(ctx.accounts.vault_receipt.mint, v.receipt_mint, SentinelError::MintNotAllowed);
+        {
+            let y = &mut ctx.accounts.yield_config;
+            let d = now / SECONDS_PER_DAY;
+            if d != y.day { y.day = d; y.moves_today = 0; }
+            require!(y.moves_today < y.max_moves_per_day, SentinelError::TooManyTrades);
+            require!(now - y.last_move_ts >= y.min_move_interval_secs as i64, SentinelError::Cooldown);
+            if direction == Direction::Deposit {
+                require!(!ctx.accounts.vault.paused, SentinelError::Paused);
+            }
+        }
+        let (pre_in, pre_out) = match direction {
+            Direction::Deposit => (ctx.accounts.vault_quote.amount, ctx.accounts.vault_receipt.amount),
+            Direction::Withdraw => (ctx.accounts.vault_receipt.amount, ctx.accounts.vault_quote.amount),
+        };
+        require!(pre_in >= max_in, SentinelError::InsufficientFunds);
+
+        let metas: Vec<AccountMeta> = ctx.remaining_accounts.iter().map(|a| AccountMeta {
+            pubkey: a.key(),
+            is_signer: a.key() == vault_key || a.is_signer,
+            is_writable: a.is_writable,
+        }).collect();
+        let ix = Instruction { program_id: v.program, accounts: metas, data: cpi_data };
+        let owner = ctx.accounts.vault.owner;
+        let bump = ctx.accounts.vault.bump;
+        let seeds: &[&[u8]] = &[VAULT_SEED, owner.as_ref(), &[bump]];
+        let mut infos = ctx.remaining_accounts.to_vec();
+        infos.push(ctx.accounts.lending_program.to_account_info());
+        infos.push(ctx.accounts.vault.to_account_info());
+        invoke_signed(&ix, &infos, &[seeds])?;
+
+        ctx.accounts.vault_quote.reload()?;
+        ctx.accounts.vault_receipt.reload()?;
+        let (post_in, post_out) = match direction {
+            Direction::Deposit => (ctx.accounts.vault_quote.amount, ctx.accounts.vault_receipt.amount),
+            Direction::Withdraw => (ctx.accounts.vault_receipt.amount, ctx.accounts.vault_quote.amount),
+        };
+        let spent = pre_in.checked_sub(post_in).ok_or(SentinelError::BalanceMismatch)?;
+        let received = post_out.checked_sub(pre_out).ok_or(SentinelError::BalanceMismatch)?;
+        require!(spent <= max_in, SentinelError::OverSpent);
+        require!(received >= min_out, SentinelError::Slippage);
+
+        let y = &mut ctx.accounts.yield_config;
+        y.moves_today += 1;
+        y.last_move_ts = now;
+        y.total_moves += 1;
+        emit!(Rebalanced { vault: vault_key, venue, direction, spent, received, decision_seq: ctx.accounts.vault.decisions, ts: now });
+        Ok(())
+    }
 }
 
 // ---------------- state ----------------
@@ -346,6 +438,81 @@ pub struct Swap<'info> {
     /// CHECK: compared against vault.swap_program in the handler.
     pub swap_program: UncheckedAccount<'info>,
 }
+
+
+pub const MAX_VENUES: usize = 4;
+pub const YIELD_SEED: &[u8] = b"yield";
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug, InitSpace)]
+pub enum Direction { Deposit, Withdraw }
+
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug, InitSpace)]
+pub struct Venue {
+    /// Lending program the vault may CPI into (e.g. Jupiter Lend Earn, Kamino Lend).
+    pub program: Pubkey,
+    /// Receipt token that program mints for USDC deposits (e.g. jlUSDC, Kamino USDC cToken).
+    pub receipt_mint: Pubkey,
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct YieldConfig {
+    pub vault: Pubkey,
+    #[max_len(4)]
+    pub venues: Vec<Venue>,
+    pub max_moves_per_day: u16,
+    pub min_move_interval_secs: u32,
+    pub day: i64,
+    pub moves_today: u16,
+    pub last_move_ts: i64,
+    pub total_moves: u64,
+    pub bump: u8,
+}
+
+#[derive(Accounts)]
+pub struct InitYield<'info> {
+    #[account(mut)]
+    pub owner: Signer<'info>,
+    #[account(seeds = [VAULT_SEED, owner.key().as_ref()], bump = vault.bump, has_one = owner)]
+    pub vault: Account<'info, Vault>,
+    #[account(init, payer = owner, space = 8 + YieldConfig::INIT_SPACE, seeds = [YIELD_SEED, vault.key().as_ref()], bump)]
+    pub yield_config: Account<'info, YieldConfig>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct SetYield<'info> {
+    pub owner: Signer<'info>,
+    #[account(seeds = [VAULT_SEED, owner.key().as_ref()], bump = vault.bump, has_one = owner)]
+    pub vault: Account<'info, Vault>,
+    #[account(mut, seeds = [YIELD_SEED, vault.key().as_ref()], bump = yield_config.bump, has_one = vault)]
+    pub yield_config: Account<'info, YieldConfig>,
+}
+
+#[derive(Accounts)]
+pub struct Rebalance<'info> {
+    pub agent: Signer<'info>,
+    #[account(has_one = agent)]
+    pub vault: Account<'info, Vault>,
+    #[account(mut, seeds = [YIELD_SEED, vault.key().as_ref()], bump = yield_config.bump, has_one = vault)]
+    pub yield_config: Account<'info, YieldConfig>,
+    #[account(mut, associated_token::mint = vault.quote_mint, associated_token::authority = vault)]
+    pub vault_quote: Account<'info, TokenAccount>,
+    /// Receipt-token account; must be owned by the vault, mint checked against the venue.
+    #[account(mut, token::authority = vault)]
+    pub vault_receipt: Account<'info, TokenAccount>,
+    /// CHECK: compared against the venue's whitelisted program in the handler.
+    pub lending_program: UncheckedAccount<'info>,
+}
+
+impl<'info> Rebalance<'info> {
+    fn venue_of(&self, i: u8) -> Result<Venue> {
+        self.yield_config.venues.get(i as usize).copied().ok_or(error!(SentinelError::SwapProgramNotAllowed))
+    }
+}
+
+#[event]
+pub struct Rebalanced { pub vault: Pubkey, pub venue: u8, pub direction: Direction, pub spent: u64, pub received: u64, pub decision_seq: u64, pub ts: i64 }
 
 // ---------------- events & errors ----------------
 

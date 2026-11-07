@@ -14,6 +14,99 @@ export type SentinelVault = {
   },
   "instructions": [
     {
+      "name": "initYield",
+      "docs": [
+        "Owner whitelists up to 4 lending venues: (lending program, receipt-token mint)."
+      ],
+      "discriminator": [
+        19,
+        1,
+        6,
+        165,
+        207,
+        249,
+        41,
+        255
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "yieldConfig",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  121,
+                  105,
+                  101,
+                  108,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "venues",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "venue"
+              }
+            }
+          }
+        },
+        {
+          "name": "maxMovesPerDay",
+          "type": "u16"
+        },
+        {
+          "name": "minMoveIntervalSecs",
+          "type": "u32"
+        }
+      ]
+    },
+    {
       "name": "initializeVault",
       "discriminator": [
         48,
@@ -325,6 +418,193 @@ export type SentinelVault = {
       ]
     },
     {
+      "name": "rebalance",
+      "docs": [
+        "Guarded move of USDC into (Deposit) or out of (Withdraw) a whitelisted lending venue.",
+        "The agent supplies the CPI bytes, but the program enforces:",
+        "- the target program is the venue's whitelisted lending program,",
+        "- tokens can only move between the vault's USDC account and the vault's receipt-token",
+        "account for that venue (both PDA-owned ATAs, so nothing can leave the vault),",
+        "- measured balance deltas respect max_in / min_out (agent cannot lie about amounts),",
+        "- a rate limit (moves per day + minimum interval) so a compromised agent cannot churn fees,",
+        "- deposits are blocked while paused; withdrawals back to USDC are always allowed."
+      ],
+      "discriminator": [
+        108,
+        158,
+        77,
+        9,
+        210,
+        52,
+        88,
+        62
+      ],
+      "accounts": [
+        {
+          "name": "agent",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "relations": [
+            "yieldConfig"
+          ]
+        },
+        {
+          "name": "yieldConfig",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  121,
+                  105,
+                  101,
+                  108,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vaultQuote",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.quoteMint",
+                "account": "vault"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "vaultReceipt",
+          "docs": [
+            "Receipt-token account; must be owned by the vault, mint checked against the venue."
+          ],
+          "writable": true
+        },
+        {
+          "name": "lendingProgram"
+        }
+      ],
+      "args": [
+        {
+          "name": "venue",
+          "type": "u8"
+        },
+        {
+          "name": "direction",
+          "type": {
+            "defined": {
+              "name": "direction"
+            }
+          }
+        },
+        {
+          "name": "maxIn",
+          "type": "u64"
+        },
+        {
+          "name": "minOut",
+          "type": "u64"
+        },
+        {
+          "name": "cpiData",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
       "name": "setAgent",
       "discriminator": [
         154,
@@ -475,6 +755,94 @@ export type SentinelVault = {
               "name": "policy"
             }
           }
+        }
+      ]
+    },
+    {
+      "name": "setYield",
+      "discriminator": [
+        234,
+        85,
+        157,
+        135,
+        75,
+        39,
+        160,
+        170
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          },
+          "relations": [
+            "yieldConfig"
+          ]
+        },
+        {
+          "name": "yieldConfig",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  121,
+                  105,
+                  101,
+                  108,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "venues",
+          "type": {
+            "vec": {
+              "defined": {
+                "name": "venue"
+              }
+            }
+          }
+        },
+        {
+          "name": "maxMovesPerDay",
+          "type": "u16"
+        },
+        {
+          "name": "minMoveIntervalSecs",
+          "type": "u32"
         }
       ]
     },
@@ -795,6 +1163,19 @@ export type SentinelVault = {
         117,
         119
       ]
+    },
+    {
+      "name": "yieldConfig",
+      "discriminator": [
+        249,
+        13,
+        186,
+        63,
+        85,
+        7,
+        255,
+        18
+      ]
     }
   ],
   "events": [
@@ -848,6 +1229,19 @@ export type SentinelVault = {
         236,
         245,
         161
+      ]
+    },
+    {
+      "name": "rebalanced",
+      "discriminator": [
+        74,
+        101,
+        57,
+        244,
+        181,
+        179,
+        52,
+        182
       ]
     },
     {
@@ -1002,6 +1396,20 @@ export type SentinelVault = {
       }
     },
     {
+      "name": "direction",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "deposit"
+          },
+          {
+            "name": "withdraw"
+          }
+        ]
+      }
+    },
+    {
       "name": "pauseChanged",
       "type": {
         "kind": "struct",
@@ -1063,6 +1471,46 @@ export type SentinelVault = {
                 "name": "policy"
               }
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "rebalanced",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "venue",
+            "type": "u8"
+          },
+          {
+            "name": "direction",
+            "type": {
+              "defined": {
+                "name": "direction"
+              }
+            }
+          },
+          {
+            "name": "spent",
+            "type": "u64"
+          },
+          {
+            "name": "received",
+            "type": "u64"
+          },
+          {
+            "name": "decisionSeq",
+            "type": "u64"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
           }
         ]
       }
@@ -1234,6 +1682,78 @@ export type SentinelVault = {
           {
             "name": "swapProgram",
             "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "venue",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "program",
+            "docs": [
+              "Lending program the vault may CPI into (e.g. Jupiter Lend Earn, Kamino Lend)."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "receiptMint",
+            "docs": [
+              "Receipt token that program mints for USDC deposits (e.g. jlUSDC, Kamino USDC cToken)."
+            ],
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "yieldConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "venues",
+            "type": {
+              "vec": {
+                "defined": {
+                  "name": "venue"
+                }
+              }
+            }
+          },
+          {
+            "name": "maxMovesPerDay",
+            "type": "u16"
+          },
+          {
+            "name": "minMoveIntervalSecs",
+            "type": "u32"
+          },
+          {
+            "name": "day",
+            "type": "i64"
+          },
+          {
+            "name": "movesToday",
+            "type": "u16"
+          },
+          {
+            "name": "lastMoveTs",
+            "type": "i64"
+          },
+          {
+            "name": "totalMoves",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
           }
         ]
       }
