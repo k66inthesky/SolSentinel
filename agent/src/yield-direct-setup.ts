@@ -25,7 +25,7 @@ if (MODE === "fork") {
 const usdc = Number((await conn.getTokenAccountBalance(ata)).value.amount) / 1e6;
 // mainnet: the SOL->USDC swap's cost (price/fee loss + its tx fee) is a setup cost; USDC-account rent is refundable at exit
 const swap = MODE === "mainnet" && existsSync("deployments/mainnet-swap.json") ? JSON.parse(readFileSync("deployments/mainnet-swap.json", "utf8")) : null;
-const swapFeeUsd = swap ? Math.max(0, swap.solSpentInclFeesAndRent - swap.swappedSol - 0.00203928) * swap.refPrice : 0;
+const swapFeeUsd = swap ? (swap.txFeeSol ?? 0) * swap.refPrice : 0;
 const dep = { mode: MODE, direct: true, swap, swapFeeUsd, owner: agent.publicKey.toBase58(), agent: agent.publicKey.toBase58(), depositedUsd: usdc,
   agentLamportsAtDeploy: await conn.getBalance(agent.publicKey), setupFeesUsd: swap ? swap.swapCostUsd + swapFeeUsd : 0, at: new Date().toISOString() };
 writeFileSync(`deployments/yield-${MODE}-direct.json`, JSON.stringify(dep, null, 2));

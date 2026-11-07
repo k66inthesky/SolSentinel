@@ -1,10 +1,12 @@
 {
   "mode": "fork",
   "direct": true,
+  "swap": null,
+  "swapFeeUsd": 0,
   "owner": "9qVdc45v3PgpiPVvVCwe6iUXq1F8mAsyro7VLEGFfvMi",
   "agent": "9qVdc45v3PgpiPVvVCwe6iUXq1F8mAsyro7VLEGFfvMi",
   "depositedUsd": 10,
   "agentLamportsAtDeploy": 10000000,
   "setupFeesUsd": 0,
-  "at": "2026-11-07T16:08:47.237Z"
+  "at": "2026-11-07T16:27:51.894Z"
 }

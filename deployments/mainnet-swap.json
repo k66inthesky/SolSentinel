@@ -1,0 +1,11 @@
+{
+  "sig": "5ghCTHShJLUJD2M9ev84J5oHwLAydNHoS7m4kSPFsALrv7TatNPY3rLsnyr4VQcY71uDhX8NeX6N6CkyxUfvyE62",
+  "swappedSol": 0.1,
+  "gotUsdc": 8.945331,
+  "refPrice": 89.53465430099087,
+  "swapCostUsd": 0.008134,
+  "solSpentInclFeesAndRent": 0.10149444,
+  "txFeeSol": 6e-06,
+  "at": "2026-11-07T16:29:49Z",
+  "note": "recorded by hand: the script's confirm call timed out after the tx had landed (finalized)."
+}

@@ -1,0 +1,22 @@
+{
+  "mode": "mainnet",
+  "direct": true,
+  "swap": {
+    "sig": "5ghCTHShJLUJD2M9ev84J5oHwLAydNHoS7m4kSPFsALrv7TatNPY3rLsnyr4VQcY71uDhX8NeX6N6CkyxUfvyE62",
+    "swappedSol": 0.1,
+    "gotUsdc": 8.945331,
+    "refPrice": 89.53465430099087,
+    "swapCostUsd": 0.008134,
+    "solSpentInclFeesAndRent": 0.10149444,
+    "txFeeSol": 0.000006,
+    "at": "2026-11-07T16:29:49Z",
+    "note": "recorded by hand: the script's confirm call timed out after the tx had landed (finalized)."
+  },
+  "swapFeeUsd": 0.0005372079258059452,
+  "owner": "9qVdc45v3PgpiPVvVCwe6iUXq1F8mAsyro7VLEGFfvMi",
+  "agent": "9qVdc45v3PgpiPVvVCwe6iUXq1F8mAsyro7VLEGFfvMi",
+  "depositedUsd": 8.945331,
+  "agentLamportsAtDeploy": 41221289,
+  "setupFeesUsd": 0.008671207925805946,
+  "at": "2026-11-07T16:31:01.511Z"
+}

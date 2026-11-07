@@ -58,8 +58,14 @@ export class YieldChain {
       ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 }), ComputeBudgetProgram.setComputeUnitPrice({ microLamports: this.priority }), ...ixs);
     tx.sign(this.agent);
     const sig = await this.conn.sendRawTransaction(tx.serialize(), { skipPreflight: false, maxRetries: 3 });
-    const res = await this.conn.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
-    if (res.value.err) throw new Error(`tx ${sig} failed: ${JSON.stringify(res.value.err)}`);
+    // Poll signature status over HTTP (websocket confirmation is not available behind every proxy).
+    for (let i = 0; ; i++) {
+      const st = (await this.conn.getSignatureStatuses([sig], { searchTransactionHistory: true })).value[0];
+      if (st?.err) throw new Error(`tx ${sig} failed: ${JSON.stringify(st.err)}`);
+      if (st && (st.confirmationStatus === "confirmed" || st.confirmationStatus === "finalized")) break;
+      if ((await this.conn.getBlockHeight("confirmed")) > lastValidBlockHeight) throw new Error(`tx ${sig} expired`);
+      await new Promise(r => setTimeout(r, 1500));
+    }
     const fee = (await this.conn.getTransaction(sig, { commitment: "confirmed", maxSupportedTransactionVersion: 0 }))?.meta?.fee ?? 0;
     return { sig, feeLamports: fee };
   }
