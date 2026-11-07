@@ -229,6 +229,27 @@ pub mod sentinel_vault {
         });
         Ok(())
     }
+    /// Owner closes an EMPTY vault-owned token account (e.g. a receipt-token ATA of a retired venue);
+    /// the rent comes back to the owner, so opening venue accounts is a refundable deposit, not a cost.
+    pub fn close_token(ctx: Context<CloseToken>) -> Result<()> {
+        let owner = ctx.accounts.vault.owner;
+        let seeds: &[&[u8]] = &[VAULT_SEED, owner.as_ref(), &[ctx.accounts.vault.bump]];
+        token::close_account(CpiContext::new_with_signer(
+            ctx.accounts.token_program.key(),
+            token::CloseAccount {
+                account: ctx.accounts.account.to_account_info(),
+                destination: ctx.accounts.owner.to_account_info(),
+                authority: ctx.accounts.vault.to_account_info(),
+            },
+            &[seeds],
+        ))
+    }
+
+    /// Owner closes the yield config and then the vault itself (all vault token accounts must be closed first),
+    /// returning every lamport of rent: the whole setup is refundable.
+    pub fn close_yield(_ctx: Context<CloseYield>) -> Result<()> { Ok(()) }
+    pub fn close_vault(_ctx: Context<CloseVault>) -> Result<()> { Ok(()) }
+
     // ======================= yield router =======================
 
     /// Owner whitelists up to 4 lending venues: (lending program, receipt-token mint).
@@ -467,6 +488,35 @@ pub struct YieldConfig {
     pub last_move_ts: i64,
     pub total_moves: u64,
     pub bump: u8,
+}
+
+#[derive(Accounts)]
+pub struct CloseToken<'info> {
+    #[account(mut)]
+    pub owner: Signer<'info>,
+    #[account(seeds = [VAULT_SEED, owner.key().as_ref()], bump = vault.bump, has_one = owner)]
+    pub vault: Account<'info, Vault>,
+    #[account(mut, token::authority = vault)]
+    pub account: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct CloseYield<'info> {
+    #[account(mut)]
+    pub owner: Signer<'info>,
+    #[account(seeds = [VAULT_SEED, owner.key().as_ref()], bump = vault.bump, has_one = owner)]
+    pub vault: Account<'info, Vault>,
+    #[account(mut, close = owner, seeds = [YIELD_SEED, vault.key().as_ref()], bump = yield_config.bump, has_one = vault)]
+    pub yield_config: Account<'info, YieldConfig>,
+}
+
+#[derive(Accounts)]
+pub struct CloseVault<'info> {
+    #[account(mut)]
+    pub owner: Signer<'info>,
+    #[account(mut, close = owner, seeds = [VAULT_SEED, owner.key().as_ref()], bump = vault.bump, has_one = owner)]
+    pub vault: Account<'info, Vault>,
 }
 
 #[derive(Accounts)]

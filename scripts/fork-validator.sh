@@ -7,7 +7,7 @@ RPC=${MAINNET_RPC:-https://api.mainnet-beta.solana.com}
 OWNER=$(solana address -k ~/.config/solana/id.json)
 OWNER_USDC=$(NODE_NO_WARNINGS=1 node -e "const {getAssociatedTokenAddressSync}=require(\"@solana/spl-token\");const {PublicKey}=require(\"@solana/web3.js\");console.log(getAssociatedTokenAddressSync(new PublicKey(\"EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v\"),new PublicKey(process.argv[1])).toBase58())" "$OWNER")
 mkdir -p .fork && python3 scripts/make-usdc-account.py "$OWNER_USDC" EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v "$OWNER" 10000000 .fork/owner-usdc.json
-ACCTS=(7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF D6q6wuQSrifJKZYpR1M8R4YawnLDtDsMmWM1NbBmgJ59 Bgq7trRgVMeq33yt235zM2onQ4bRDBsY5EWiTetF4qw6 B8V6WVjPxW1UGwVDfxH2d2r8SyT4cqn7dQRK6XneVa7D 3t4JZcueEzTbVP6kLxXrL3VpWx45jDer4eqysweBchNH
+ACCTS=(So11111111111111111111111111111111111111112 7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF D6q6wuQSrifJKZYpR1M8R4YawnLDtDsMmWM1NbBmgJ59 Bgq7trRgVMeq33yt235zM2onQ4bRDBsY5EWiTetF4qw6 B8V6WVjPxW1UGwVDfxH2d2r8SyT4cqn7dQRK6XneVa7D 3t4JZcueEzTbVP6kLxXrL3VpWx45jDer4eqysweBchNH
   EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v 9BEcn9aPEmhSPbPQeFGjidRiEKki46fVQDyPpSQXPA2D
   5nmGjA4s7ATzpBQXC5RNceRpaJ7pYw2wKsNBWyuSAZV6 2vVYHYM8VYnvZqQWpTJSj8o8DBf1wM8pVs3bsTgYZiqJ 94vK29npVbyRHXH63rRcTiSr26SFhrQTzbpNJuhQEDu
   Hf9gtkM4dpVBahVSzEXSVCAPpKzBsBcns3s8As3z77oF 5pjzT5dFTsXcwixoab1QDLvZQvpYJxJeBphkyfHGn688 BmkUoKMFYBxNSzWXyUjyMJjMAaVz4d8ZnxwwmhDCUXFB

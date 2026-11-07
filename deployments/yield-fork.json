@@ -1,0 +1,18 @@
+{
+  "mode": "fork",
+  "owner": "FucA1TfA4S2RjBzAfq63RCajLdwkexgw1MHiBcKrC41d",
+  "agent": "9qVdc45v3PgpiPVvVCwe6iUXq1F8mAsyro7VLEGFfvMi",
+  "vault": "FX4n1byUyEGcG9EK5KhGMTp9unNPYkC8PNvNm2CqBTG8",
+  "yieldConfig": "FG85dAtAW7rDVjEosoRxQSP8oVbR5UtEQMBA3na96Z6w",
+  "depositedUsd": 10,
+  "setupFeeLamports": 15000,
+  "setupFeesUsd": 0.0024000000000000002,
+  "refundableRentLamports": 14274984,
+  "agentLamportsAtDeploy": 2000000000,
+  "sigs": [
+    "4XVY8QHoCh7iMB1GQTtzB5JfvWMG6TUkdrf6TiLEpU7ENhM1FmQH1Qo8uMdrDAnqocuh3hoJc5XBuz8M3F1dYvXh",
+    "3jf2DW8L72b7egKkNjaQBJnv7W1mDqdu4YhiegBGUahCfxh5ePqZLx7MF4t4ML4Q2eyd5ZXnYQAnZ3fcSKRJK9v5",
+    "5yFxMmUK1UhX68ES4r4XqGch7Qpb6XWwqmTs873mBfYj47YZhTCpEKvZvDMZWjhhw5Si7yN4LrzhCAfhWVtkqjjH"
+  ],
+  "at": "2026-11-07T08:47:50.673Z"
+}

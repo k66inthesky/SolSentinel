@@ -1,7 +1,19 @@
 // Kamino Lend (KLend) USDC reserve, main market. Instructions are built by hand from the klend IDL so the agent
 // stays on web3.js v1. Deposit = deposit_reserve_liquidity (USDC -> kUSDC collateral token, no obligation/borrowing),
 // withdraw = redeem_reserve_collateral (kUSDC -> USDC). Both need refresh_reserve earlier in the same transaction.
-import { PublicKey, SYSVAR_INSTRUCTIONS_PUBKEY, TransactionInstruction } from "@solana/web3.js";
+import { Connection, PublicKey, SYSVAR_INSTRUCTIONS_PUBKEY, TransactionInstruction } from "@solana/web3.js";
+import { Reserve } from "@kamino-finance/klend-sdk/dist/@codegen/klend/accounts/Reserve.js";
+
+/** On-chain state of the Kamino USDC reserve: USDC per collateral unit (net of protocol/referrer fees). */
+export async function kaminoState(conn: Connection) {
+  const a = await conn.getAccountInfo(K_USDC_RESERVE);
+  if (!a) throw new Error("kamino reserve missing");
+  const r: any = Reserve.decode(a.data);
+  const SF = 2 ** 60, n = (x: any) => Number(x.toString());
+  const liq = n(r.liquidity.totalAvailableAmount) + n(r.liquidity.borrowedAmountSf) / SF
+    - n(r.liquidity.accumulatedProtocolFeesSf) / SF - n(r.liquidity.accumulatedReferrerFeesSf) / SF - n(r.liquidity.pendingReferrerFeesSf) / SF;
+  return { assetsPerShare: liq / n(r.collateral.mintTotalSupply), lastUpdateSlot: n(r.lastUpdate.slot) };
+}
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { createHash } from "node:crypto";
 import { USDC_MINT } from "./jlend.js";

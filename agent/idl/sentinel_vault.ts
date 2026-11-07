@@ -14,6 +14,183 @@ export type SentinelVault = {
   },
   "instructions": [
     {
+      "name": "closeToken",
+      "docs": [
+        "Owner closes an EMPTY vault-owned token account (e.g. a receipt-token ATA of a retired venue);",
+        "the rent comes back to the owner, so opening venue accounts is a refundable deposit, not a cost."
+      ],
+      "discriminator": [
+        26,
+        74,
+        236,
+        151,
+        104,
+        64,
+        183,
+        249
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "account",
+          "writable": true
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "closeVault",
+      "discriminator": [
+        141,
+        103,
+        17,
+        126,
+        72,
+        75,
+        29,
+        29
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "closeYield",
+      "docs": [
+        "Owner closes the yield config and then the vault itself (all vault token accounts must be closed first),",
+        "returning every lamport of rent: the whole setup is refundable."
+      ],
+      "discriminator": [
+        198,
+        8,
+        91,
+        109,
+        239,
+        161,
+        243,
+        241
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          },
+          "relations": [
+            "yieldConfig"
+          ]
+        },
+        {
+          "name": "yieldConfig",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  121,
+                  105,
+                  101,
+                  108,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "initYield",
       "docs": [
         "Owner whitelists up to 4 lending venues: (lending program, receipt-token mint)."

@@ -11,11 +11,13 @@
     "backtest": "tsx agent/src/backtest.ts",
     "walkforward": "tsx agent/src/tune.ts",
     "agent": "tsx agent/src/main.ts",
-    "test": "tsx --test agent/test/*.test.ts",
+    "test": "tsx --test agent/test/vault.test.ts",
     "demo:guard": "tsx agent/src/guard-demo.ts",
     "typecheck": "tsc -p .",
     "validator:fork": "scripts/fork-validator.sh",
-    "test:fork": "tsx --test agent/test/yield-fork.test.ts"
+    "test:fork": "tsx --test agent/test/yield-fork.test.ts",
+    "yield": "NODE_USE_ENV_PROXY=1 tsx agent/src/yield-agent.ts",
+    "yield:deploy": "NODE_USE_ENV_PROXY=1 tsx agent/src/yield-deploy.ts"
   },
   "devDependencies": {
     "@types/bn.js": "^5.2.0",

@@ -143,4 +143,20 @@ test("vault routes USDC into real Jupiter Lend (mainnet fork) under on-chain gua
     assert.equal(await bal(vaultK), 0n);
     assert.ok(await bal(vaultUsdc) >= usdc0 - 2n);
   });
+
+  await t.test("owner unwinds everything and gets all rent back (setup is a refundable deposit)", async () => {
+    const vaultK = getAssociatedTokenAddressSync(K_USDC_CMINT, vault, true);
+    const usdc = await bal(vaultUsdc);
+    await ownerProg.methods.withdraw(new BN(usdc.toString())).accounts({ owner: owner.publicKey, vault, from: vaultUsdc, to: ownerUsdc } as any).rpc();
+    const before = await conn.getBalance(owner.publicKey);
+    const rent = (await Promise.all([vaultUsdc, vaultBase, vaultJl, vaultK, vault, yieldCfg].map(a => conn.getBalance(a)))).reduce((a, b) => a + b, 0);
+    for (const a of [vaultUsdc, vaultBase, vaultJl, vaultK])
+      await ownerProg.methods.closeToken().accounts({ owner: owner.publicKey, vault, account: a } as any).rpc();
+    await ownerProg.methods.closeYield().accounts({ owner: owner.publicKey, vault } as any).rpc();
+    await ownerProg.methods.closeVault().accounts({ owner: owner.publicKey } as any).rpc();
+    const after = await conn.getBalance(owner.publicKey);
+    const diff = after - before - (rent - 6 * 5000);
+    assert.ok(Math.abs(diff) < 1000, `all rent returned minus 6 tx fees (off by ${diff} lamports)`);
+    assert.equal(await conn.getAccountInfo(vault), null);
+  });
 });
