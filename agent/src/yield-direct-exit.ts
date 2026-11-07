@@ -31,7 +31,7 @@ if (payout) {
 if (ixs.length) { const r = await yc.send(ixs); console.log(`closed receipt accounts${payout ? " + paid out USDC" : ""}: ${r.sig} fee ${r.feeLamports}`); }
 if (payout) { // send the remaining SOL (fee reserve + refunded rent) back too, minus one fee
   const lam = await conn.getBalance(agent.publicKey);
-  const r = await yc.send([SystemProgram.transfer({ fromPubkey: agent.publicKey, toPubkey: payout, lamports: lam - 15_000 })]);
+  const r = await yc.send([SystemProgram.transfer({ fromPubkey: agent.publicKey, toPubkey: payout, lamports: lam - yc.txCostLamports() })]);
   console.log(`returned SOL: ${r.sig}`);
 }
 console.log({ usdc: Number((await yc.nav()).usdc) / 1e6, lamports: await conn.getBalance(agent.publicKey) });
