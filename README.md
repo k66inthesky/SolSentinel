@@ -37,6 +37,8 @@ npm run yield -- --mode fork --decide-minutes 1   # dashboard on http://localhos
 
 **Mainnet on a $10 budget: direct mode.** Deploying the vault program needs about 1.9 SOL of rent, so for a 10 USDC run the agent wallet holds the funds itself. Every guardrail still runs before each send: a program whitelist (Jupiter Lend, Kamino, ATA, Memo), a simulation of the exact transaction checked against `max_in`/`min_out`, moves per day and the minimum interval between moves. The decision hash goes in an SPL Memo in the same transaction. A full round trip on the fork (Jupiter → Kamino → idle, then closing the receipt accounts) returned 10 USDC → 9.999999 USDC. Fees were 27,000 lamports for 5 transactions, and all rent came back.
 
+**Live on mainnet with real money (2026-11-07 16:31 UTC):** the agent deposited 8.945331 USDC into Jupiter Lend ([tx 3aLHFor…TRu1UuDVr](https://solscan.io/tx/3aLHForFJLv1rxt2MgdSztgqLNh9coqvtDeBuyEPvxGptb4xUs1tiscsLbSBKMmQm9bcYn3FD8AFRWzTRu1UuDVr)), with the decision hash in the same transaction's Memo. Demo video: https://youtu.be/MP8hbujpc8g. Full write-up: [SUBMISSION.md](SUBMISSION.md).
+
 ```bash
 npx tsx agent/src/yield-direct-setup.ts mainnet            # records the starting USDC/SOL of the agent wallet
 npm run yield -- --mode mainnet --direct --once           # one decision; run it on a schedule (positions earn while nothing runs)
@@ -205,7 +207,7 @@ Profiles:
 
 ### Mainnet
 
-`--mode mainnet` routes through Jupiter's `swap-instructions` with the vault PDA as the user, wrapped in `sentinel_vault::swap`. It is **implemented but not yet exercised with real funds**. Deploy the vault with `swap_program = JUP6Lkb…`, deposit a small amount (e.g. 10 USDC) and watch the first trade.
+`--mode mainnet` routes through Jupiter's `swap-instructions` with the vault PDA as the user, wrapped in `sentinel_vault::swap`. This swap path of the earlier trading agent is implemented but was not run with real funds. (The yield agent above is the one live on mainnet.) Deploy the vault with `swap_program = JUP6Lkb…`, deposit a small amount (e.g. 10 USDC) and watch the first trade.
 
 ## Repo layout
 
