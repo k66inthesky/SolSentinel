@@ -1,6 +1,6 @@
 // Vault-side plumbing for the yield router: balances / NAV and guarded rebalance transactions.
 import { AnchorProvider, Program } from "@anchor-lang/core";
-import { ComputeBudgetProgram, Connection, Keypair, PublicKey, Transaction, TransactionInstruction } from "@solana/web3.js";
+import { ComputeBudgetProgram, Connection, Keypair, PublicKey, Transaction, TransactionInstruction, TransactionMessage, VersionedTransaction } from "@solana/web3.js";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import BN from "bn.js";
 import { KeypairWallet as Wallet } from "./wallet.js";
@@ -34,7 +34,11 @@ export class YieldChain {
     const [usdc, ...shares] = accs.map(amt);
     const [j, k] = await Promise.all([jlendState(this.conn), kaminoState(this.conn)]);
     const perShare = [j.assetsPerShare, k.assetsPerShare];
-    const value = shares.map((s, i) => Number(s) * perShare[i] / 1e6);
+    // Value = what a full exit would actually return now (simulated against the live lending programs);
+    // falls back to the stored exchange rate if simulation is unavailable.
+    const value = await Promise.all(shares.map(async (s, i) => {
+      try { return Number(await this.simulateExitUsdc(i, s)) / 1e6; } catch { return Number(s) * perShare[i] / 1e6; }
+    }));
     const idleUsd = Number(usdc) / 1e6, navUsd = idleUsd + value.reduce((a, b) => a + b, 0);
     const maxV = Math.max(...value);
     const current = maxV > idleUsd ? value.indexOf(maxV) : IDLE;
@@ -51,6 +55,22 @@ export class YieldChain {
     if (res.value.err) throw new Error(`tx ${sig} failed: ${JSON.stringify(res.value.err)}`);
     const fee = (await this.conn.getTransaction(sig, { commitment: "confirmed", maxSupportedTransactionVersion: 0 }))?.meta?.fee ?? 0;
     return { sig, feeLamports: fee };
+  }
+
+  /** Exact USDC the vault would get by exiting `venue` right now: simulates the real lending program's redeem
+   *  (interest accrued up to the current slot/time included, rounding included). Nothing is sent. */
+  async simulateExitUsdc(venue: number, shares: bigint): Promise<bigint> {
+    if (shares === 0n) return 0n;
+    const ix = venue === 0 ? await jlendRedeemIx(this.conn, this.vault, shares) : kaminoIx(this.vault, "withdraw", shares);
+    const ixs = venue === 1 ? [kaminoRefreshIx(), ix] : [ix];
+    const { blockhash } = await this.conn.getLatestBlockhash("confirmed");
+    const msg = new TransactionMessage({ payerKey: this.agent.publicKey, recentBlockhash: blockhash,
+      instructions: [ComputeBudgetProgram.setComputeUnitLimit({ units: 400_000 }), ...ixs] }).compileToV0Message();
+    const pre = (await this.conn.getTokenAccountBalance(this.usdcAta)).value.amount;
+    const r = await this.conn.simulateTransaction(new VersionedTransaction(msg), { sigVerify: false, replaceRecentBlockhash: true, accounts: { encoding: "base64", addresses: [this.usdcAta.toBase58()] } });
+    if (r.value.err || !r.value.accounts?.[0]) throw new Error(`exit simulation failed: ${JSON.stringify(r.value.err)} ${(r.value.logs ?? []).slice(-3).join(" | ")}`);
+    const post = Buffer.from(r.value.accounts[0]!.data[0], "base64").readBigUInt64LE(64);
+    return post - BigInt(pre);
   }
 
   /** Lamports per transaction with our compute budget: base fee + priority fee on the CU limit. */

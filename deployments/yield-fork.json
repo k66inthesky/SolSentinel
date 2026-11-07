@@ -5,14 +5,13 @@
   "vault": "FX4n1byUyEGcG9EK5KhGMTp9unNPYkC8PNvNm2CqBTG8",
   "yieldConfig": "FG85dAtAW7rDVjEosoRxQSP8oVbR5UtEQMBA3na96Z6w",
   "depositedUsd": 10,
-  "setupFeeLamports": 15000,
-  "setupFeesUsd": 0.0024000000000000002,
-  "refundableRentLamports": 14274984,
+  "setupFeeLamports": 5000,
+  "setupFeesUsd": 0.00044933080476085963,
+  "solUsd": 89.86616095217192,
+  "refundableRentLamports": 14274936,
   "agentLamportsAtDeploy": 2000000000,
   "sigs": [
-    "4zV4Y1qJKQiwbZ4X86A7hP9coUKTgH1pDgUKQbszamG1LP1v7HELnLJLpr3pNUrYtfE1Y9oo4JdcK7GciGiZFiUG",
-    "4Jr3QzADaiJEGJcrFfhm1BmUvvtHCQ3Q79JxcNBSNUaSaPzpKoUcjpqjtZRSiBPCRxQVsXBzN2kaVv7cSffWr8Da",
-    "4Rad9eXWV8qyFGQfRFEaVxPZUi9Xfnjdpf7tA3o8QP64fvvBcLvyMD1BnH2NTbNS1YqmsMEq1UbLq6Y8oYx7LxDa"
+    "5GZ9W2BykbLnd7PQRho71sTrqam1NDMLjkxr4QFghm9hDuGUe326HAMRYgiqEbaNwtLLY2sAzX3QiffH4NdiSUiv"
   ],
-  "at": "2026-11-07T08:53:41.985Z"
+  "at": "2026-11-07T13:39:53.288Z"
 }

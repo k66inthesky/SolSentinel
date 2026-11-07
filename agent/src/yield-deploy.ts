@@ -27,16 +27,16 @@ const prog = new Program(vaultIdl as any, p);
 const vault = vaultPda(owner.publicKey);
 const ownerLamports0 = await conn.getBalance(owner.publicKey);
 const sigs: string[] = [];
-if (!(await conn.getAccountInfo(vault))) {
-  sigs.push(await prog.methods.initializeVault(agent.publicKey, PublicKey.default,
-    { maxTradeQuote: new BN(1), maxTradesPerDay: 1, dailyLossLimitQuote: new BN(1), cooldownSecs: 0 })
-    .accounts({ owner: owner.publicKey, quoteMint: USDC_MINT, baseMint: NATIVE_MINT } as any).rpc());
-}
+// Everything the owner does is ONE transaction (one 5000-lamport fee): vault, yield config, receipt ATAs, USDC in.
 const [yieldCfg] = PublicKey.findProgramAddressSync([Buffer.from("yield"), vault.toBuffer()], prog.programId);
 const venues = VENUES.map(v => ({ program: v.program, receiptMint: v.receipt }));
-if (!(await conn.getAccountInfo(yieldCfg))) sigs.push(await prog.methods.initYield(venues, 6, INTERVAL).accounts({ owner: owner.publicKey, vault } as any).rpc());
-else sigs.push(await prog.methods.setYield(venues, 6, INTERVAL).accounts({ owner: owner.publicKey, vault } as any).rpc());
 const tx = new Transaction();
+if (!(await conn.getAccountInfo(vault))) tx.add(await prog.methods.initializeVault(agent.publicKey, PublicKey.default,
+    { maxTradeQuote: new BN(1), maxTradesPerDay: 1, dailyLossLimitQuote: new BN(1), cooldownSecs: 0 })
+    .accounts({ owner: owner.publicKey, quoteMint: USDC_MINT, baseMint: NATIVE_MINT } as any).instruction());
+tx.add(await (await conn.getAccountInfo(yieldCfg)
+  ? prog.methods.setYield(venues, 6, INTERVAL).accounts({ owner: owner.publicKey, vault } as any)
+  : prog.methods.initYield(venues, 6, INTERVAL).accounts({ owner: owner.publicKey, vault } as any)).instruction());
 for (const v of VENUES) tx.add(createAssociatedTokenAccountIdempotentInstruction(owner.publicKey, getAssociatedTokenAddressSync(v.receipt, vault, true), vault, v.receipt));
 if (USDC > 0) tx.add(createTransferInstruction(getAssociatedTokenAddressSync(USDC_MINT, owner.publicKey), getAssociatedTokenAddressSync(USDC_MINT, vault, true), owner.publicKey, BigInt(Math.round(USDC * 1e6))));
 sigs.push(await p.sendAndConfirm(tx));
@@ -45,10 +45,10 @@ sigs.push(await p.sendAndConfirm(tx));
 let feeLamports = 0;
 for (const s of sigs) feeLamports += (await conn.getTransaction(s, { commitment: "confirmed", maxSupportedTransactionVersion: 0 }))?.meta?.fee ?? 0;
 const rentLamports = ownerLamports0 - (await conn.getBalance(owner.publicKey)) - feeLamports;
-const solUsd = 160;
+const solUsd = await (async () => { try { const j: any = await (await fetch("https://lite-api.jup.ag/price/v3?ids=So11111111111111111111111111111111111111112")).json(); return +j.So11111111111111111111111111111111111111112.usdPrice; } catch { return 160; } })();
 mkdirSync("deployments", { recursive: true });
 const dep = { mode: MODE, owner: owner.publicKey.toBase58(), agent: agent.publicKey.toBase58(), vault: vault.toBase58(), yieldConfig: yieldCfg.toBase58(),
-  depositedUsd: USDC, setupFeeLamports: feeLamports, setupFeesUsd: feeLamports / LAMPORTS_PER_SOL * solUsd, refundableRentLamports: rentLamports,
+  depositedUsd: USDC, setupFeeLamports: feeLamports, setupFeesUsd: feeLamports / LAMPORTS_PER_SOL * solUsd, solUsd, refundableRentLamports: rentLamports,
   agentLamportsAtDeploy: await conn.getBalance(agent.publicKey), sigs, at: new Date().toISOString() };
 writeFileSync(`deployments/yield-${MODE}.json`, JSON.stringify(dep, null, 2));
 console.log(dep);
