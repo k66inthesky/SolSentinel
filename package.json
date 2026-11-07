@@ -1,0 +1,33 @@
+{
+  "name": "solsentinel",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validator": "scripts/validator.sh",
+    "build:programs": "anchor build && cp target/idl/*.json target/types/sentinel_vault.ts target/types/mock_swap.ts agent/idl/",
+    "deploy:local": "tsx agent/src/deploy.ts local",
+    "deploy:devnet": "solana program deploy -u devnet target/deploy/sentinel_vault.so --program-id target/deploy/sentinel_vault-keypair.json && solana program deploy -u devnet target/deploy/mock_swap.so --program-id target/deploy/mock_swap-keypair.json && tsx agent/src/deploy.ts devnet",
+    "backtest": "tsx agent/src/backtest.ts",
+    "walkforward": "tsx agent/src/tune.ts",
+    "agent": "tsx agent/src/main.ts",
+    "test": "tsx --test agent/test/*.test.ts",
+    "demo:guard": "tsx agent/src/guard-demo.ts",
+    "typecheck": "tsc -p ."
+  },
+  "devDependencies": {
+    "@types/bn.js": "^5.2.0",
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@anchor-lang/core": "^1.2.2",
+    "@anthropic-ai/sdk": "^1.6.0",
+    "@solana/spl-token": "^0.4.15",
+    "@solana/web3.js": "^1.99.0",
+    "bs58": "^6.0.0",
+    "ws": "^8.22.1",
+    "zod": "^4.6.7"
+  }
+}

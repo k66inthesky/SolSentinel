@@ -1,0 +1,24 @@
+
+
+[toolchain]
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+sentinel_vault = "6TL13uSNzjJhG48LheLAZJei4M62rEe4peaj9GASECKu"
+mock_swap = "HGsqvWLXJHuQnVdhvd2aXYRYhziHVEJsi8bacLg6bomo"
+
+[programs.devnet]
+sentinel_vault = "6TL13uSNzjJhG48LheLAZJei4M62rEe4peaj9GASECKu"
+mock_swap = "HGsqvWLXJHuQnVdhvd2aXYRYhziHVEJsi8bacLg6bomo"
+
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "cargo test"
+
+[hooks]

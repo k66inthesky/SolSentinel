@@ -1,0 +1,73 @@
+{
+  "tunedOn": "first 5 days",
+  "configsTried": 192,
+  "inSample": {
+    "label": "tuned params, in-sample (first 5d)",
+    "trades": 9,
+    "trend": {
+      "n": 3,
+      "pnlUsd": -0.0245
+    },
+    "range": {
+      "n": 6,
+      "pnlUsd": -0.0199
+    },
+    "returnPct": -0.444,
+    "winRatePct": 55.6,
+    "maxDrawdownPct": 0.874,
+    "buyHoldPct": 0.777
+  },
+  "outOfSample": [
+    {
+      "label": "default params, out-of-sample (last 2d)",
+      "trades": 5,
+      "trend": {
+        "n": 0,
+        "pnlUsd": 0
+      },
+      "range": {
+        "n": 5,
+        "pnlUsd": -0.0085
+      },
+      "returnPct": -0.085,
+      "winRatePct": 40,
+      "maxDrawdownPct": 0.507,
+      "buyHoldPct": -6.095
+    },
+    {
+      "label": "tuned params, out-of-sample (last 2d)",
+      "trades": 13,
+      "trend": {
+        "n": 0,
+        "pnlUsd": 0
+      },
+      "range": {
+        "n": 13,
+        "pnlUsd": -0.1313
+      },
+      "returnPct": -1.313,
+      "winRatePct": 38.5,
+      "maxDrawdownPct": 1.67,
+      "buyHoldPct": -6.095
+    }
+  ],
+  "tunedParams": {
+    "breakoutLookback": 15,
+    "atrPeriod": 14,
+    "breakoutAtrK": 0.5,
+    "emaFast": 9,
+    "emaSlow": 21,
+    "tpAtr": 1.5,
+    "trailAtr": 2,
+    "bbPeriod": 20,
+    "bbEntry": 2,
+    "bbStop": 3,
+    "maxHoldMs": 1800000,
+    "erPeriod": 30,
+    "erTrend": 0.25,
+    "erRange": 0.2,
+    "maxAtrPct": 0.006,
+    "feeBps": 10,
+    "minEdgeMult": 2
+  }
+}

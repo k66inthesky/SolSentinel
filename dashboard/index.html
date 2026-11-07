@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SolSentinel</title>
+<style>
+  :root {
+    --bg: #0b0d12; --panel: #12161f; --line: #1f2633; --text: #e6e9ef; --muted: #8a93a6;
+    --up: #2fd18b; --down: #ff5d6c; --accent: #9b7bff; --warn: #f5b84b;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, Segoe UI, sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+  h1 { font-size: 18px; margin: 0; letter-spacing: .3px; }
+  h1 span { color: var(--accent); }
+  .pill { font: 12px var(--mono); padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+  .pill.on { color: var(--up); border-color: color-mix(in srgb, var(--up) 40%, transparent); }
+  .pill.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
+  .pill.bad { color: var(--down); border-color: color-mix(in srgb, var(--down) 40%, transparent); }
+  main { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; padding: 16px 20px 40px; max-width: 1400px; margin: 0 auto; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+  .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 10px; font-weight: 600; }
+  .kpi { grid-column: span 3; }
+  .kpi .v { font: 600 24px var(--mono); }
+  .kpi .s { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .chart { grid-column: span 8; }
+  .side { grid-column: span 4; }
+  .wide { grid-column: span 12; }
+  .half { grid-column: span 6; }
+  canvas { width: 100%; height: 300px; display: block; }
+  table { width: 100%; border-collapse: collapse; font: 12px var(--mono); }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 500; }
+  td.r, th.r { text-align: right; }
+  .up { color: var(--up); } .down { color: var(--down); } .muted { color: var(--muted); }
+  a { color: var(--accent); text-decoration: none; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font: 12px var(--mono); }
+  .kv div:nth-child(odd) { color: var(--muted); }
+  .decision { border-left: 2px solid var(--accent); padding: 6px 10px; margin-bottom: 10px; }
+  .decision .meta { font: 11px var(--mono); color: var(--muted); }
+  .bar { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--accent); }
+  .scroll { max-height: 320px; overflow: auto; }
+  @media (max-width: 900px) { .kpi { grid-column: span 6; } .chart, .side, .half { grid-column: span 12; } main { padding: 12px 16px 32px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Sol<span>Sentinel</span></h1>
+  <span class="pill" id="mode">mode</span>
+  <span class="pill" id="regime">regime</span>
+  <span class="pill" id="status">status</span>
+  <span class="pill" id="feed">feed</span>
+</header>
+<main>
+  <section class="card kpi"><h2>SOL / USDC (Orca pool, on-chain)</h2><div class="v" id="px">—</div><div class="s" id="pxs">—</div></section>
+  <section class="card kpi"><h2>Equity</h2><div class="v" id="eq">—</div><div class="s" id="eqs">—</div></section>
+  <section class="card kpi"><h2>Signal → sent</h2><div class="v" id="lat">—</div><div class="s" id="lats">median of recent trades</div></section>
+  <section class="card kpi"><h2>Trades</h2><div class="v" id="nt">0</div><div class="s" id="nts">—</div></section>
+
+  <section class="card chart"><h2>Price, last 2h (1m) · trigger levels · fills</h2><canvas id="c"></canvas></section>
+  <section class="card side"><h2>On-chain guard (Sentinel Vault)</h2><div class="kv" id="vault"><div>status</div><div>paper mode: policy mirrored off-chain</div></div>
+    <h2 style="margin-top:16px">Today vs. policy</h2>
+    <div class="muted" style="font-size:12px">trades</div><div class="bar"><i id="b1" style="width:0"></i></div>
+    <div class="muted" style="font-size:12px;margin-top:8px">loss budget used</div><div class="bar"><i id="b2" style="width:0"></i></div>
+    <h2 style="margin-top:16px">Last rejections</h2><div id="rej" class="muted" style="font:12px var(--mono)">none</div>
+  </section>
+
+  <section class="card half"><h2>Slow brain decisions (hash logged on-chain)</h2><div class="scroll" id="dec"></div></section>
+  <section class="card half"><h2>Fast path: current levels</h2><div class="kv" id="lv"></div></section>
+
+  <section class="card wide"><h2>Trades</h2><div class="scroll"><table id="tr"><thead><tr><th>#</th><th>time</th><th>side</th><th>mode</th><th class="r">fill</th><th class="r">size</th><th class="r">PnL</th><th>why</th><th class="r">signal→sent</th><th class="r">confirm</th><th>tx</th></tr></thead><tbody></tbody></table></div></section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const fmt = (n, d = 2) => n == null || isNaN(n) ? "—" : Number(n).toFixed(d);
+const tm = (t) => new Date(t).toLocaleTimeString();
+let S = null;
+
+function tx(sig) {
+  if (!sig) return '<span class="muted">paper</span>';
+  return `<a href="https://explorer.solana.com/tx/${sig}${S.explorer.cluster}" target="_blank" rel="noopener">${sig.slice(0, 8)}…</a>`;
+}
+function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+function draw() {
+  const cv = $("c"), dpr = window.devicePixelRatio || 1;
+  const w = cv.clientWidth, h = cv.clientHeight;
+  cv.width = w * dpr; cv.height = h * dpr;
+  const g = cv.getContext("2d"); g.scale(dpr, dpr); g.clearRect(0, 0, w, h);
+  const bars = [...S.bars]; if (S.curBar) bars.push(S.curBar);
+  if (bars.length < 2) return;
+  const lv = S.levels || {};
+  const vals = bars.flatMap(b => [b.h, b.l]).concat([lv.entryAbove, lv.entryBelow, lv.rangeMean].filter(Boolean));
+  let lo = Math.min(...vals), hi = Math.max(...vals); const pad = (hi - lo) * 0.08 || 0.1; lo -= pad; hi += pad;
+  const L = 8, R = 56, T = 8, B = 18, cw = (w - L - R) / bars.length;
+  const y = (p) => T + (hi - p) / (hi - lo) * (h - T - B);
+  g.strokeStyle = css("--line"); g.fillStyle = css("--muted"); g.font = "11px ui-monospace, monospace"; g.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) { const p = lo + (hi - lo) * i / 4, yy = y(p); g.beginPath(); g.moveTo(L, yy); g.lineTo(w - R, yy); g.stroke(); g.fillText(p.toFixed(2), w - R + 6, yy + 4); }
+  bars.forEach((b, i) => {
+    const x = L + i * cw + cw / 2, up = b.c >= b.o;
+    g.strokeStyle = g.fillStyle = up ? css("--up") : css("--down");
+    g.beginPath(); g.moveTo(x, y(b.h)); g.lineTo(x, y(b.l)); g.stroke();
+    const bw = Math.max(1, cw * 0.6); g.fillRect(x - bw / 2, Math.min(y(b.o), y(b.c)), bw, Math.max(1, Math.abs(y(b.o) - y(b.c))));
+  });
+  const hline = (p, color, label) => { if (!p) return; g.setLineDash([4, 4]); g.strokeStyle = color; g.beginPath(); g.moveTo(L, y(p)); g.lineTo(w - R, y(p)); g.stroke(); g.setLineDash([]); g.fillStyle = color; g.fillText(label, L + 4, y(p) - 4); };
+  hline(lv.entryAbove, css("--accent"), "breakout buy");
+  hline(lv.entryBelow, css("--accent"), "mean-revert buy");
+  hline(lv.rangeMean, css("--muted"), "mean");
+  if (S.pos) { hline(S.pos.tp, css("--up"), "take-profit"); hline(S.pos.stop, css("--down"), "stop"); }
+  const t0 = bars[0].t, span = 60_000 * bars.length;
+  for (const t of S.trades) {
+    if (t.ts < t0) continue;
+    const x = L + (t.ts - t0) / span * (w - L - R), yy = y(t.fillPx);
+    g.fillStyle = t.side === "buy" ? css("--up") : css("--down");
+    g.beginPath(); if (t.side === "buy") { g.moveTo(x, yy - 9); g.lineTo(x - 6, yy - 1); g.lineTo(x + 6, yy - 1); } else { g.moveTo(x, yy + 9); g.lineTo(x - 6, yy + 1); g.lineTo(x + 6, yy + 1); } g.fill();
+  }
+}
+
+function render() {
+  const t = S.tick;
+  $("mode").textContent = `${S.mode} · ${S.profile}`;
+  const reg = S.levels?.regime ?? "—";
+  $("regime").textContent = `regime: ${reg}${S.regimeOverride ? " (LLM)" : " (rules)"}`;
+  $("regime").className = "pill " + (reg === "halt" ? "warn" : "on");
+  const halted = S.vault?.halted, paused = S.paused || S.vault?.paused;
+  $("status").textContent = halted ? "daily-loss halt" : paused ? "paused" : S.pos ? `in position (${S.pos.mode})` : "flat, watching";
+  $("status").className = "pill " + (halted || paused ? "bad" : S.pos ? "warn" : "on");
+  $("feed").textContent = t ? `slot ticks ${S.ticks} · Pyth age ${fmt(S.tickAgeMs / 1000, 1)}s` : "connecting…";
+  $("feed").className = "pill " + (t && S.tickAgeMs < 30000 ? "on" : "warn");
+  $("px").textContent = t ? fmt(t.px, 3) : "—";
+  $("pxs").textContent = t ? `Pyth ${fmt(t.oraclePx, 3)} (${t.oracleDevPct >= 0 ? "+" : ""}${fmt(t.oracleDevPct, 3)}%) · slot ${t.slot}` : "";
+  const pnl = S.equity - S.startEquity;
+  $("eq").textContent = `$${fmt(S.equity, 3)}`;
+  $("eqs").innerHTML = `<span class="${pnl >= 0 ? "up" : "down"}">${pnl >= 0 ? "+" : ""}${fmt(pnl, 4)} USD (${fmt(pnl / S.startEquity * 100, 2)}%)</span>`;
+  const lats = S.trades.map(x => x.latency.signalToSentMs).sort((a, b) => a - b);
+  $("lat").textContent = lats.length ? `${fmt(lats[Math.floor(lats.length / 2)], 0)} ms` : "—";
+  const conf = S.trades.filter(x => x.latency.confirmMs).map(x => x.latency.confirmMs).sort((a, b) => a - b);
+  $("lats").textContent = conf.length ? `confirm median ${fmt(conf[Math.floor(conf.length / 2)], 0)} ms` : "median of recent trades";
+  const sells = S.trades.filter(x => x.side === "sell"), wins = sells.filter(x => x.pnlUsd > 0).length;
+  $("nt").textContent = S.trades.length;
+  $("nts").textContent = sells.length ? `${wins}/${sells.length} round trips won` : "no closed round trips yet";
+
+  const v = S.vault;
+  if (v) {
+    $("vault").innerHTML = [
+      ["vault", `<a target="_blank" rel="noopener" href="https://explorer.solana.com/address/${v.address}${S.explorer.cluster}">${v.address.slice(0, 10)}…</a>`],
+      ["balances", `${fmt(v.quote, 3)} USDC · ${fmt(v.base, 5)} SOL`],
+      ["per-trade cap", `$${v.policy.maxTradeUsd}`], ["trades / day", `${v.tradesToday} / ${v.policy.maxTradesPerDay}`],
+      ["realized today", `${fmt(v.realizedPnlToday, 4)} (limit −${v.policy.dailyLossLimitUsd})`], ["cooldown", `${v.policy.cooldownSecs}s`],
+      ["decisions logged", v.decisions], ["last hash", `${v.lastDecisionHash.slice(0, 16)}…`],
+      ["paused / halted", `${v.paused} / ${v.halted}`],
+    ].map(([a, b]) => `<div>${a}</div><div>${b}</div>`).join("");
+    $("b1").style.width = `${Math.min(100, v.tradesToday / v.policy.maxTradesPerDay * 100)}%`;
+    $("b2").style.width = `${Math.min(100, Math.max(0, -v.realizedPnlToday) / v.policy.dailyLossLimitUsd * 100)}%`;
+  } else {
+    $("vault").innerHTML = `<div>mode</div><div>paper: same policy, checked off-chain</div><div>per-trade cap</div><div>$${S.policy.maxTradeUsd}</div><div>trades / day</div><div>${S.policy.maxTradesPerDay}</div><div>daily loss limit</div><div>$${S.policy.dailyLossLimitUsd}</div>`;
+  }
+  $("rej").innerHTML = S.rejections.slice(-5).reverse().map(r => `${tm(r.ts)} ${r.why}`).join("<br>") || "none";
+
+  $("dec").innerHTML = [...S.decisions].reverse().map(d => `<div class="decision"><div class="meta">${tm(d.ts)} · ${d.source}${d.model ? " " + d.model : ""} · ${fmt(d.latencyMs, 0)}ms · ${d.onchainSig ? tx(d.onchainSig) : "sha256 " + d.hash.slice(0, 12) + "…"}</div><b>${d.regime}</b>${d.pause_trading ? ' <span class="down">pause</span>' : ""} — ${d.reasoning}</div>`).join("") || '<span class="muted">waiting for first decision…</span>';
+
+  const lv = S.levels || {};
+  $("lv").innerHTML = [
+    ["regime", `${lv.regime} (rules said ${lv.ruleRegime})`], ["efficiency ratio", fmt(lv.er, 3)], ["ATR (1m)", `${fmt(lv.atr, 4)} (${fmt(lv.atr / lv.price * 100, 3)}%)`],
+    ["breakout buy ≥", fmt(lv.entryAbove, 3)], ["mean-revert buy ≤", fmt(lv.entryBelow, 3)], ["range mean", fmt(lv.rangeMean, 3)],
+    ["why", lv.reason || "—"],
+    ["position", S.pos ? `${S.pos.mode} ${fmt(S.pos.qty, 5)} SOL @ ${fmt(S.pos.entryPx, 3)} · tp ${fmt(S.pos.tp, 3)} · stop ${fmt(S.pos.stop, 3)}` : "flat"],
+  ].map(([a, b]) => `<div>${a}</div><div>${b}</div>`).join("");
+
+  $("tr").querySelector("tbody").innerHTML = [...S.trades].reverse().map(t => `<tr><td>${t.id}</td><td>${tm(t.ts)}</td><td class="${t.side === "buy" ? "up" : "down"}">${t.side}</td><td>${t.mode}</td><td class="r">${fmt(t.fillPx, 3)}</td><td class="r">$${fmt(t.usd, 3)}</td><td class="r ${t.pnlUsd > 0 ? "up" : t.pnlUsd < 0 ? "down" : ""}">${t.pnlUsd == null ? "" : fmt(t.pnlUsd, 4)}</td><td>${t.why}</td><td class="r">${fmt(t.latency.signalToSentMs, 0)}ms</td><td class="r">${t.latency.confirmMs ? fmt(t.latency.confirmMs, 0) + "ms" : "—"}</td><td>${tx(t.sig)}</td></tr>`).join("") || '<tr><td colspan="11" class="muted">no trades yet; the agent only trades when a level is crossed and every limit passes</td></tr>';
+  draw();
+}
+
+async function poll() {
+  try { S = await (await fetch("/api/state")).json(); render(); } catch (e) { $("feed").textContent = "agent offline"; $("feed").className = "pill bad"; }
+  setTimeout(poll, 1000);
+}
+window.addEventListener("resize", () => S && draw());
+poll();
+</script>
+</body>
+</html>

@@ -1,0 +1,1236 @@
+{
+  "address": "6TL13uSNzjJhG48LheLAZJei4M62rEe4peaj9GASECKu",
+  "metadata": {
+    "name": "sentinel_vault",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "initialize_vault",
+      "discriminator": [
+        48,
+        191,
+        163,
+        44,
+        71,
+        129,
+        63,
+        164
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "quote_mint"
+        },
+        {
+          "name": "base_mint"
+        },
+        {
+          "name": "vault_quote",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "quote_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "vault_base",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "base_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "agent",
+          "type": "pubkey"
+        },
+        {
+          "name": "swap_program",
+          "type": "pubkey"
+        },
+        {
+          "name": "policy",
+          "type": {
+            "defined": {
+              "name": "Policy"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "log_decision",
+      "docs": [
+        "Append an AI decision to the on-chain audit log. `reason_hash` = sha256 of the full",
+        "LLM/strategy reasoning JSON that the agent stores off-chain; anyone can re-hash and verify."
+      ],
+      "discriminator": [
+        160,
+        73,
+        104,
+        176,
+        37,
+        115,
+        231,
+        204
+      ],
+      "accounts": [
+        {
+          "name": "agent",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "regime",
+          "type": "u8"
+        },
+        {
+          "name": "action",
+          "type": "u8"
+        },
+        {
+          "name": "price_e6",
+          "type": "u64"
+        },
+        {
+          "name": "reason_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "set_agent",
+      "discriminator": [
+        154,
+        74,
+        121,
+        91,
+        137,
+        19,
+        101,
+        166
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "agent",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "set_paused",
+      "discriminator": [
+        91,
+        60,
+        125,
+        192,
+        176,
+        225,
+        166,
+        218
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "paused",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "set_policy",
+      "discriminator": [
+        40,
+        133,
+        12,
+        157,
+        235,
+        202,
+        2,
+        132
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "policy",
+          "type": {
+            "defined": {
+              "name": "Policy"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "swap",
+      "docs": [
+        "Guarded swap. `cpi_data` and `remaining_accounts` are passed verbatim to the whitelisted",
+        "swap program; the vault PDA signs. The program trusts nothing the agent claims about",
+        "amounts: it reads token balances before and after the CPI."
+      ],
+      "discriminator": [
+        248,
+        198,
+        158,
+        145,
+        225,
+        117,
+        135,
+        200
+      ],
+      "accounts": [
+        {
+          "name": "agent",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "vault_quote",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.quote_mint",
+                "account": "Vault"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "vault_base",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "vault"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "vault.base_mint",
+                "account": "Vault"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "swap_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "side",
+          "type": {
+            "defined": {
+              "name": "Side"
+            }
+          }
+        },
+        {
+          "name": "max_in",
+          "type": "u64"
+        },
+        {
+          "name": "min_out",
+          "type": "u64"
+        },
+        {
+          "name": "cpi_data",
+          "type": "bytes"
+        }
+      ]
+    },
+    {
+      "name": "withdraw",
+      "docs": [
+        "Owner-only withdrawal. The agent key has no path to move funds out of the vault."
+      ],
+      "discriminator": [
+        183,
+        18,
+        70,
+        156,
+        148,
+        109,
+        161,
+        34
+      ],
+      "accounts": [
+        {
+          "name": "owner",
+          "signer": true,
+          "relations": [
+            "vault"
+          ]
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "from",
+          "writable": true
+        },
+        {
+          "name": "to",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Vault",
+      "discriminator": [
+        211,
+        8,
+        232,
+        43,
+        2,
+        152,
+        117,
+        119
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "DailyLossHaltTriggered",
+      "discriminator": [
+        9,
+        147,
+        176,
+        61,
+        209,
+        168,
+        113,
+        223
+      ]
+    },
+    {
+      "name": "DecisionLogged",
+      "discriminator": [
+        230,
+        225,
+        27,
+        62,
+        90,
+        190,
+        89,
+        146
+      ]
+    },
+    {
+      "name": "PauseChanged",
+      "discriminator": [
+        238,
+        188,
+        213,
+        78,
+        134,
+        209,
+        178,
+        218
+      ]
+    },
+    {
+      "name": "PolicyUpdated",
+      "discriminator": [
+        225,
+        112,
+        112,
+        67,
+        95,
+        236,
+        245,
+        161
+      ]
+    },
+    {
+      "name": "TradeExecuted",
+      "discriminator": [
+        41,
+        110,
+        64,
+        129,
+        60,
+        79,
+        179,
+        80
+      ]
+    },
+    {
+      "name": "VaultInitialized",
+      "discriminator": [
+        180,
+        43,
+        207,
+        2,
+        18,
+        71,
+        3,
+        75
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Paused",
+      "msg": "Vault is paused by its owner"
+    },
+    {
+      "code": 6001,
+      "name": "DailyLossHalt",
+      "msg": "Daily loss limit hit; new buys halted until next UTC day"
+    },
+    {
+      "code": 6002,
+      "name": "TradeTooLarge",
+      "msg": "Trade exceeds per-trade cap"
+    },
+    {
+      "code": 6003,
+      "name": "TooManyTrades",
+      "msg": "Daily trade count reached"
+    },
+    {
+      "code": 6004,
+      "name": "Cooldown",
+      "msg": "Cooldown between trades not elapsed"
+    },
+    {
+      "code": 6005,
+      "name": "SwapProgramNotAllowed",
+      "msg": "Swap program is not the whitelisted one"
+    },
+    {
+      "code": 6006,
+      "name": "InsufficientFunds",
+      "msg": "Vault balance too low"
+    },
+    {
+      "code": 6007,
+      "name": "BalanceMismatch",
+      "msg": "Token balance moved the wrong way"
+    },
+    {
+      "code": 6008,
+      "name": "OverSpent",
+      "msg": "Swap spent more than max_in"
+    },
+    {
+      "code": 6009,
+      "name": "Slippage",
+      "msg": "Received less than min_out"
+    },
+    {
+      "code": 6010,
+      "name": "MintNotAllowed",
+      "msg": "Mint not allowed"
+    },
+    {
+      "code": 6011,
+      "name": "BadPolicy",
+      "msg": "Invalid policy"
+    }
+  ],
+  "types": [
+    {
+      "name": "DailyLossHaltTriggered",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "day",
+            "type": "i64"
+          },
+          {
+            "name": "realized_pnl_today",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DecisionLogged",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "seq",
+            "type": "u64"
+          },
+          {
+            "name": "regime",
+            "type": "u8"
+          },
+          {
+            "name": "action",
+            "type": "u8"
+          },
+          {
+            "name": "price_e6",
+            "type": "u64"
+          },
+          {
+            "name": "reason_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PauseChanged",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "paused",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Policy",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "max_trade_quote",
+            "docs": [
+              "Max quote (USDC base units) per buy."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "max_trades_per_day",
+            "type": "u16"
+          },
+          {
+            "name": "daily_loss_limit_quote",
+            "docs": [
+              "Realized loss (USDC base units) per UTC day that halts new buys."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "cooldown_secs",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PolicyUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "policy",
+            "type": {
+              "defined": {
+                "name": "Policy"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Side",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Buy"
+          },
+          {
+            "name": "Sell"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TradeExecuted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "side",
+            "type": {
+              "defined": {
+                "name": "Side"
+              }
+            }
+          },
+          {
+            "name": "spent",
+            "type": "u64"
+          },
+          {
+            "name": "received",
+            "type": "u64"
+          },
+          {
+            "name": "realized_pnl",
+            "type": "i64"
+          },
+          {
+            "name": "realized_pnl_today",
+            "type": "i64"
+          },
+          {
+            "name": "decision_seq",
+            "type": "u64"
+          },
+          {
+            "name": "ts",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Vault",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "agent",
+            "type": "pubkey"
+          },
+          {
+            "name": "quote_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "base_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "swap_program",
+            "type": "pubkey"
+          },
+          {
+            "name": "policy",
+            "type": {
+              "defined": {
+                "name": "Policy"
+              }
+            }
+          },
+          {
+            "name": "paused",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "day",
+            "type": "i64"
+          },
+          {
+            "name": "halted_day",
+            "type": "i64"
+          },
+          {
+            "name": "trades_today",
+            "type": "u16"
+          },
+          {
+            "name": "realized_pnl_today",
+            "type": "i64"
+          },
+          {
+            "name": "last_trade_ts",
+            "type": "i64"
+          },
+          {
+            "name": "open_cost",
+            "type": "u64"
+          },
+          {
+            "name": "total_trades",
+            "type": "u64"
+          },
+          {
+            "name": "total_realized_pnl",
+            "type": "i64"
+          },
+          {
+            "name": "decisions",
+            "type": "u64"
+          },
+          {
+            "name": "last_decision_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "VaultInitialized",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "agent",
+            "type": "pubkey"
+          },
+          {
+            "name": "swap_program",
+            "type": "pubkey"
+          }
+        ]
+      }
+    }
+  ]
+}

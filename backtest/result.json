@@ -1,0 +1,100 @@
+{
+  "summary": {
+    "label": "",
+    "trades": 8,
+    "trend": {
+      "n": 3,
+      "pnlUsd": -0.0884
+    },
+    "range": {
+      "n": 5,
+      "pnlUsd": -0.0085
+    },
+    "returnPct": -0.968,
+    "winRatePct": 25,
+    "maxDrawdownPct": 1.199,
+    "buyHoldPct": -5.415
+  },
+  "trades": [
+    {
+      "mode": "trend",
+      "entryTs": 1793803710000,
+      "exitTs": 1793803725000,
+      "entryPx": 95.61551999999999,
+      "exitPx": 95.08482000000001,
+      "pnlUsd": -0.027751770842222356,
+      "pnlPct": -0.5550354168444471,
+      "why": "trailing-stop"
+    },
+    {
+      "mode": "trend",
+      "entryTs": 1793804490000,
+      "exitTs": 1793804550000,
+      "entryPx": 95.91581999999998,
+      "exitPx": 95.39451,
+      "pnlUsd": -0.027175391921790748,
+      "pnlPct": -0.543507838435815,
+      "why": "trailing-stop"
+    },
+    {
+      "mode": "trend",
+      "entryTs": 1793804730000,
+      "exitTs": 1793804790000,
+      "entryPx": 97.9979,
+      "exitPx": 97.34255999999999,
+      "pnlUsd": -0.033436430780660054,
+      "pnlPct": -0.6687286156132011,
+      "why": "trailing-stop"
+    },
+    {
+      "mode": "range",
+      "entryTs": 1793893860000,
+      "exitTs": 1793893890000,
+      "entryPx": 90.40030999999999,
+      "exitPx": 89.83008,
+      "pnlUsd": -0.03153916175729865,
+      "pnlPct": -0.630783235145973,
+      "why": "stop"
+    },
+    {
+      "mode": "range",
+      "entryTs": 1793894115000,
+      "exitTs": 1793894610000,
+      "entryPx": 89.60951999999999,
+      "exitPx": 90.44946,
+      "pnlUsd": 0.0468666722017943,
+      "pnlPct": 0.9373334440358861,
+      "why": "take-profit"
+    },
+    {
+      "mode": "range",
+      "entryTs": 1793897010000,
+      "exitTs": 1793898090000,
+      "entryPx": 90.53043999999998,
+      "exitPx": 89.93997,
+      "pnlUsd": -0.032611682877051074,
+      "pnlPct": -0.6522336575410215,
+      "why": "stop"
+    },
+    {
+      "mode": "range",
+      "entryTs": 1793977530000,
+      "exitTs": 1793977575000,
+      "entryPx": 90.23013999999999,
+      "exitPx": 90.03987,
+      "pnlUsd": -0.010543594413130464,
+      "pnlPct": -0.21087188826260927,
+      "why": "stop"
+    },
+    {
+      "mode": "range",
+      "entryTs": 1793979420000,
+      "exitTs": 1793979630000,
+      "entryPx": 90.15006,
+      "exitPx": 90.49941,
+      "pnlUsd": 0.019376027037585786,
+      "pnlPct": 0.3875205407517157,
+      "why": "take-profit"
+    }
+  ]
+}
