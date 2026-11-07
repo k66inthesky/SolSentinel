@@ -25,7 +25,13 @@ const payout = arg("payout") ? new PublicKey(arg("payout")!) : null;
 const ixs: any[] = [...close];
 if (payout) {
   const dst = getAssociatedTokenAddressSync(USDC_MINT, payout);
-  ixs.push(createAssociatedTokenAccountIdempotentInstruction(agent.publicKey, dst, payout, USDC_MINT), createTransferInstruction(yc.usdcAta, dst, agent.publicKey, n.usdc));
+  ixs.push(createAssociatedTokenAccountIdempotentInstruction(agent.publicKey, dst, payout, USDC_MINT), createTransferInstruction(yc.usdcAta, dst, agent.publicKey, n.usdc),
+    createCloseAccountInstruction(yc.usdcAta, agent.publicKey, agent.publicKey));
 }
 if (ixs.length) { const r = await yc.send(ixs); console.log(`closed receipt accounts${payout ? " + paid out USDC" : ""}: ${r.sig} fee ${r.feeLamports}`); }
+if (payout) { // send the remaining SOL (fee reserve + refunded rent) back too, minus one fee
+  const lam = await conn.getBalance(agent.publicKey);
+  const r = await yc.send([SystemProgram.transfer({ fromPubkey: agent.publicKey, toPubkey: payout, lamports: lam - 15_000 })]);
+  console.log(`returned SOL: ${r.sig}`);
+}
 console.log({ usdc: Number((await yc.nav()).usdc) / 1e6, lamports: await conn.getBalance(agent.publicKey) });

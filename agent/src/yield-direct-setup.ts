@@ -3,7 +3,7 @@
 //   npx tsx agent/src/yield-direct-setup.ts --mode fork|mainnet
 import { Connection, LAMPORTS_PER_SOL, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
 import { createAssociatedTokenAccountIdempotentInstruction, createTransferInstruction, getAssociatedTokenAddressSync } from "@solana/spl-token";
-import { writeFileSync } from "node:fs";
+import { writeFileSync, existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { loadKeypair } from "./chain.js";
 import { USDC_MINT } from "./jlend.js";
@@ -23,7 +23,10 @@ if (MODE === "fork") {
     createTransferInstruction(getAssociatedTokenAddressSync(USDC_MINT, owner.publicKey), ata, owner.publicKey, 10_000_000)), [owner]);
 }
 const usdc = Number((await conn.getTokenAccountBalance(ata)).value.amount) / 1e6;
-const dep = { mode: MODE, direct: true, owner: agent.publicKey.toBase58(), agent: agent.publicKey.toBase58(), depositedUsd: usdc,
-  agentLamportsAtDeploy: await conn.getBalance(agent.publicKey), setupFeesUsd: 0, at: new Date().toISOString() };
+// mainnet: the SOL->USDC swap's cost (price/fee loss + its tx fee) is a setup cost; USDC-account rent is refundable at exit
+const swap = MODE === "mainnet" && existsSync("deployments/mainnet-swap.json") ? JSON.parse(readFileSync("deployments/mainnet-swap.json", "utf8")) : null;
+const swapFeeUsd = swap ? Math.max(0, swap.solSpentInclFeesAndRent - swap.swappedSol - 0.00203928) * swap.refPrice : 0;
+const dep = { mode: MODE, direct: true, swap, swapFeeUsd, owner: agent.publicKey.toBase58(), agent: agent.publicKey.toBase58(), depositedUsd: usdc,
+  agentLamportsAtDeploy: await conn.getBalance(agent.publicKey), setupFeesUsd: swap ? swap.swapCostUsd + swapFeeUsd : 0, at: new Date().toISOString() };
 writeFileSync(`deployments/yield-${MODE}-direct.json`, JSON.stringify(dep, null, 2));
 console.log(dep);
