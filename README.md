@@ -35,7 +35,13 @@ scripts/restart-fork.sh && npm run yield:deploy -- --mode fork
 npm run yield -- --mode fork --decide-minutes 1   # dashboard on http://localhost:8788
 ```
 
-Mainnet needs three things: deploy the program (about 1.9 SOL of refundable program rent), fund `~/.config/solana/id.json` with USDC plus a little SOL, and run `npm run yield:deploy -- --mode mainnet --usdc 10`, then `npm run yield -- --mode mainnet`.
+**Mainnet on a $10 budget: direct mode.** Deploying the vault program needs about 1.9 SOL of rent, so for a 10 USDC run the agent wallet holds the funds itself. Every guardrail still runs before each send: a program whitelist (Jupiter Lend, Kamino, ATA, Memo), a simulation of the exact transaction checked against `max_in`/`min_out`, moves per day and the minimum interval between moves. The decision hash goes in an SPL Memo in the same transaction. A full round trip on the fork (Jupiter → Kamino → idle, then closing the receipt accounts) returned 10 USDC → 9.999999 USDC. Fees were 27,000 lamports for 5 transactions, and all rent came back.
+
+```bash
+npx tsx agent/src/yield-direct-setup.ts mainnet            # records the starting USDC/SOL of the agent wallet
+npm run yield -- --mode mainnet --direct --once           # one decision; run it on a schedule (positions earn while nothing runs)
+npx tsx agent/src/yield-direct-exit.ts --mode mainnet --payout <your wallet>   # unwind, close accounts, pay out
+```
 
 Files: `programs/sentinel_vault` (`rebalance`, `init_yield`, `close_*`), `agent/src/{router,yield-agent,yield-chain,yield-brain,jlend,kamino,yield-deploy}.ts`, `agent/test/yield-fork.test.ts`, `dashboard/yield.html`.
 

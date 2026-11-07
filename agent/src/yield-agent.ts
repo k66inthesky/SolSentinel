@@ -27,18 +27,20 @@ const DECIDE_MS = +arg("decide-minutes", MODE === "fork" ? "2" : "360") * 60_000
 const PRIORITY = +arg("priority", "1000");
 const SOL_USD_FALLBACK = 160;
 
-const dep = JSON.parse(readFileSync(join(ROOT, "deployments", `yield-${MODE}.json`), "utf8"));
+const DIRECT = arg("direct", "0") === "1" || process.argv.includes("--direct");
+const MAX_MOVES_PER_DAY = 6, MIN_MOVE_INTERVAL_MS = +arg("min-interval-seconds", "3600") * 1000; // direct-mode copies of the vault's limits
+const dep = JSON.parse(readFileSync(join(ROOT, "deployments", `yield-${MODE}${DIRECT ? "-direct" : ""}.json`), "utf8"));
 const agent = loadKeypair(process.env.AGENT_KEYPAIR ?? `${homedir()}/.config/solana/agent.json`);
 const conn = new Connection(RPC, "confirmed");
-const yc = new YieldChain(conn, agent, new PublicKey(dep.owner), PRIORITY);
+const yc = new YieldChain(conn, agent, new PublicKey(dep.owner), PRIORITY, DIRECT);
 const brain = new YieldBrain();
 mkdirSync(join(ROOT, "data"), { recursive: true });
-const JOURNAL = join(ROOT, "data", `yield-${MODE}.jsonl`);
+const JOURNAL = join(ROOT, "data", `yield-${MODE}${DIRECT ? "-direct" : ""}.jsonl`);
 const journal = (o: object) => appendFileSync(JOURNAL, JSON.stringify(o) + "\n");
 
 interface Decision { ts: number; navUsd: number; current: number; proposal: RouterDecision; review: ReviewT; action: string; hash: string; sigs: string[]; feesLamports: number; error?: string }
 const S = {
-  mode: MODE, startedAt: Date.now(), vault: yc.vault.toBase58(), owner: dep.owner, agent: agent.publicKey.toBase58(),
+  mode: MODE, direct: DIRECT, startedAt: Date.now(), vault: yc.vault.toBase58(), owner: dep.owner, agent: agent.publicKey.toBase58(),
   deposited: dep.depositedUsd as number, startAgentLamports: 0, solUsd: SOL_USD_FALLBACK,
   nav: null as (Omit<Nav, "usdc" | "shares"> & { usdc: string; shares: string[] }) | null,
   navHistory: [] as { ts: number; navUsd: number }[], rates: [] as VenueRates[], ratesAt: 0,
@@ -56,7 +58,9 @@ async function value() {
   S.nav = { ...n, usdc: n.usdc.toString(), shares: n.shares.map(String) };
   S.navHistory.push({ ts: Date.now(), navUsd: n.navUsd }); if (S.navHistory.length > 5000) S.navHistory.shift();
   // Fees are the agent wallet's SOL spend since deployment (setup txs by the owner are listed in the deployment file).
-  const feesUsd = (S.startAgentLamports - n.agentLamports) / LAMPORTS_PER_SOL * S.solUsd + (dep.setupFeesUsd ?? 0);
+  // In direct mode the agent wallet also pays rent for receipt-token accounts: that is refundable (closed on exit), so it is added back.
+  const rentHeld = DIRECT ? (await conn.getMultipleAccountsInfo(yc.receiptAtas)).reduce((a, x) => a + (x?.lamports ?? 0), 0) : 0;
+  const feesUsd = (S.startAgentLamports - n.agentLamports - rentHeld) / LAMPORTS_PER_SOL * S.solUsd + (dep.setupFeesUsd ?? 0);
   S.pnl = { grossUsd: n.navUsd - S.deposited, feesUsd, netUsd: n.navUsd - S.deposited - feesUsd };
   return n;
 }
@@ -84,18 +88,24 @@ async function decideAndAct() {
     const reasonJson = JSON.stringify(rec);
     const d: Decision = { ...rec, hash: sha256(reasonJson).toString("hex"), sigs: [], feesLamports: 0 };
     try {
+      if (DIRECT && action !== "hold") {
+        const moves = S.decisions.filter(x => x.sigs.length && Date.now() - x.ts < 86_400_000);
+        if (moves.length >= MAX_MOVES_PER_DAY) throw new Error("guard: TooManyTrades (moves per day)");
+        if (moves.length && Date.now() - moves[moves.length - 1].ts < MIN_MOVE_INTERVAL_MS) throw new Error("guard: Cooldown");
+      }
       const actCode = { hold: 0, enter: 1, "top-up": 1, switch: 2, exit: 3 }[action]!;
       if (action !== "hold") {
         if (n.current !== IDLE && target !== n.current && n.shares[n.current] > 0n) {
-          const r = await yc.send([...(await yc.exitIxs(n.current, n)), await yc.logIx(target, actCode, n.navUsd, reasonJson)]);
+          const ex = await yc.exitIxs(n.current, n);
+          const r = await yc.send([...ex.ixs, await yc.logIx(target, actCode, n.navUsd, reasonJson)], ex.guard);
           d.sigs.push(r.sig); d.feesLamports += r.feeLamports;
         }
         if (target !== IDLE) {
           const n2 = await yc.nav();
           if (n2.usdc > 0n) {
-            const ixs = await yc.enterIxs(target, n2.usdc, n2);
-            if (!d.sigs.length) ixs.push(await yc.logIx(target, actCode, n.navUsd, reasonJson));
-            const r = await yc.send(ixs); d.sigs.push(r.sig); d.feesLamports += r.feeLamports;
+            const en = await yc.enterIxs(target, n2.usdc, n2);
+            if (!d.sigs.length) en.ixs.push(await yc.logIx(target, actCode, n.navUsd, reasonJson));
+            const r = await yc.send(en.ixs, en.guard); d.sigs.push(r.sig); d.feesLamports += r.feeLamports;
           }
         }
       }
@@ -117,11 +127,20 @@ createServer((req, res) => {
     return;
   }
   res.writeHead(200, { "content-type": "text/html" }); res.end(existsSync(DASH) ? readFileSync(DASH) : "dashboard missing");
-}).listen(PORT, () => console.log(`dashboard http://localhost:${PORT}  mode=${MODE} vault=${S.vault}`));
+}).listen(process.argv.includes("--once") ? 0 : PORT, () => console.log(`dashboard http://localhost:${PORT}  mode=${MODE} vault=${S.vault}`));
 
+// restore decision history (rate limits and the dashboard survive restarts)
+if (existsSync(JOURNAL)) for (const l of readFileSync(JOURNAL, "utf8").split("\n")) { if (!l) continue; try { const o = JSON.parse(l); if (o.type === "decision") { delete o.reasonJson; S.decisions.push(o); } } catch {} }
 S.startAgentLamports = dep.agentLamportsAtDeploy ?? (await conn.getBalance(agent.publicKey));
 S.solUsd = await solPrice();
 await value();
 await decideAndAct();
+// --once: one decision then exit. The money keeps earning inside the lending program while no process runs, so a
+// scheduler (cron / scheduled task) can call this every few hours instead of keeping a server up.
+if (process.argv.includes("--once")) {
+  journal({ type: "mark", ts: Date.now(), navUsd: S.nav?.navUsd, pnl: S.pnl });
+  console.log(JSON.stringify({ navUsd: S.nav?.navUsd, pnl: S.pnl }));
+  process.exit(0);
+}
 setInterval(() => value().catch(e => console.error("value:", e.message)), TICK_MS);
 setInterval(decideAndAct, DECIDE_MS);
