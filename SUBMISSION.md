@@ -36,6 +36,13 @@ We backtested the two exact venues the vault integrates, from 2026-02-27 to 2026
 
 All 200 rolling 30-day windows were positive. At $10, fixed fees eat most of the routing edge: the router beats Jupiter Lend but trails static Kamino by 0.1 percentage points. From $100 up, it beats both.
 
+### Live on mainnet with real money
+To keep the whole experiment under $10, we did not deploy the vault program on mainnet (about 1.9 SOL of rent). Instead, the agent wallet runs in **direct mode** with the same guardrails, checked by simulating each transaction before sending it. The guardrails are a program whitelist, simulated `max_in`/`min_out`, and rate limits. The decision hash goes into an SPL Memo in the same transaction.
+- 2026-11-07 16:31 UTC: deposited 8.945331 USDC into Jupiter Lend and received 8.370337 jlUSDC. Tx `3aLHForFJLv1rxt2MgdSztgqLNh9coqvtDeBuyEPvxGptb4xUs1tiscsLbSBKMmQm9bcYn3FD8AFRWzTRu1UuDVr`.
+- The exit is a single transaction: redeem, close the receipt account, return all USDC and SOL. The whole strategy costs 2 transaction fees, about $0.00097.
+- [UPDATE BEFORE SUBMITTING: live PnL at submission time]
+- Funding came in as SOL, and the one-time SOL→USDC swap cost $0.0081. That swap is a funding cost, not part of the strategy, and we report it separately.
+
 Before this, we tested short-horizon SOL trading strategies the same way: 303 configurations with costs, plus walk-forward and an ensemble. None was reliably profitable after costs, so we didn't ship one as a "money maker". The research is in the repo.
 
 ## How we built it
