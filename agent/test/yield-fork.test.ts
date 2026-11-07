@@ -10,6 +10,7 @@ import { createMint, getAssociatedTokenAddressSync, createAssociatedTokenAccount
 import { KeypairWallet as Wallet } from "../src/wallet.js";
 import { loadKeypair, vaultPda } from "../src/chain.js";
 import { jlendIx, JLEND_PROGRAM, JL_USDC, USDC_MINT } from "../src/jlend.js";
+import { kaminoIx, kaminoRefreshIx, KLEND_PROGRAM, K_USDC_CMINT } from "../src/kamino.js";
 import vaultIdl from "../idl/sentinel_vault.json" with { type: "json" };
 import os from "node:os";
 
@@ -116,5 +117,30 @@ test("vault routes USDC into real Jupiter Lend (mainnet fork) under on-chain gua
     const amt = await bal(vaultJl);
     await ownerProg.methods.withdraw(new BN(amt.toString())).accounts({ owner: owner.publicKey, vault, from: vaultJl, to: ownerJl } as any).rpc();
     assert.equal(await bal(ownerJl), amt);
+  });
+
+  await t.test("second venue: Kamino Lend USDC reserve, deposit then redeem through the vault", async () => {
+    await ownerProg.methods.setYield([{ program: JLEND_PROGRAM, receiptMint: JL_USDC }, { program: KLEND_PROGRAM, receiptMint: K_USDC_CMINT }], 20, 2)
+      .accounts({ owner: owner.publicKey, vault } as any).rpc();
+    const vaultK = getAssociatedTokenAddressSync(K_USDC_CMINT, vault, true);
+    await ownerP.sendAndConfirm(new Transaction().add(createAssociatedTokenAccountIdempotentInstruction(owner.publicKey, vaultK, vault, K_USDC_CMINT)));
+    const kmove = async (dir: "deposit" | "withdraw", amount: bigint, minOut: bigint) => {
+      const ix = kaminoIx(vault, dir, amount);
+      return agentProg.methods.rebalance(1, dir === "deposit" ? { deposit: {} } : { withdraw: {} }, new BN(amount.toString()), new BN(minOut.toString()), Buffer.from(ix.data))
+        .accountsStrict({ agent: agent.publicKey, vault, yieldConfig: yieldCfg, vaultQuote: vaultUsdc, vaultReceipt: vaultK, lendingProgram: KLEND_PROGRAM })
+        .remainingAccounts(ix.keys.map(k => ({ pubkey: k.pubkey, isWritable: k.isWritable, isSigner: false })))
+        .preInstructions([kaminoRefreshIx()]).rpc();
+    };
+    await sleep(2100);
+    const usdc0 = await bal(vaultUsdc);
+    await kmove("deposit", 5_000_000n, 3_000_000n);
+    const k = await bal(vaultK);
+    const spent = usdc0 - await bal(vaultUsdc);
+    assert.ok(spent <= 5_000_000n && spent >= 4_999_990n, `spent ${spent}`); // Kamino rounds to whole collateral units
+    assert.ok(k > 3_000_000n && k < 5_000_000n, `kUSDC ${k}`);
+    await sleep(2100);
+    await kmove("withdraw", k, 4_990_000n);   // redeem all collateral back to USDC (rounding <= 1 base unit)
+    assert.equal(await bal(vaultK), 0n);
+    assert.ok(await bal(vaultUsdc) >= usdc0 - 2n);
   });
 });
