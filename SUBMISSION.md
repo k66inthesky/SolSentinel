@@ -4,40 +4,63 @@
 SolSentinel
 
 ## Tagline (one line)
-An autonomous AI trading agent whose risk limits are enforced by a Solana program, so a prompt-injected AI can't drain your wallet.
+An AI agent that earns stablecoin yield on its own, inside a Solana vault that won't let the AI do anything but move your USDC between whitelisted lending pools.
 
 ## What it does
-SolSentinel trades SOL/USDC on its own. A fast rule engine reads prices straight from the Orca SOL/USDC Whirlpool and the Pyth oracle on-chain, and turns a signal into a signed transaction in about 20 ms. Claude supervises it every 10 minutes: it picks the market regime (trend, range or halt) and can nudge parameters within hard bounds, but it never places orders itself.
+You put USDC in the **Sentinel Vault**, an Anchor program. An autonomous agent parks it in the best Solana lending pool and moves it when another pool pays enough more to cover the switch. Today the pools are **Jupiter Lend Earn** and **Kamino Lend**.
 
-The funds live in the **Sentinel Vault**, an Anchor program. The agent key can trade through it but cannot withdraw. Every swap is a CPI to one whitelisted swap program (Jupiter on mainnet), signed by the vault PDA. The vault enforces a per-trade cap, a cooldown, trades per day, a slippage floor and a daily-loss circuit breaker. It works out the real fill from its own token balances before and after the CPI, so the agent can't misreport it. Every AI decision is hashed (sha256 of the full reasoning) and written on-chain with `log_decision` in the same transaction as the trade. The owner can pause the vault at any time, and selling stays allowed while paused, so the kill switch flattens risk instead of trapping it.
+- **Router:** a deterministic rule. Hold the venue with the best trailing 7-day realized yield. Switch only if the extra yield over 14 days pays for both transactions.
+- **Claude:** reviews each proposal and can approve, hold, or pull everything back to idle USDC if a venue looks unsafe (for example, utilization near 100% or broken data). It can never pick a venue the router didn't propose.
 
-The demo plays a compromised agent trying to drain the vault: withdraw to an attacker, all-in buy, route through a different program, accept a terrible fill, rapid-fire trades. Every attempt is rejected on-chain.
+The agent key can only call `rebalance`. The vault program enforces the rest on-chain:
+- The CPI target must be a whitelisted lending program, signed by the vault PDA.
+- Tokens can only move between the vault's own USDC account and its receipt-token account for that venue (jlUSDC or Kamino's cToken). Nothing can leave the vault.
+- `max_in` and `min_out` are checked against measured balance deltas, so the agent can't misreport amounts.
+- Moves per day and the minimum interval between moves are rate-limited, so a hijacked agent can't burn fees by churning.
+- Deposits are blocked while the owner has paused the vault. Withdrawals back to USDC always work.
+- Only the owner can withdraw. Every account can be closed and its rent refunded.
+
+Every decision is hashed (sha256 of router input, proposal and Claude's review). The hash goes on-chain in the same transaction as the move.
+
+## Is it actually profitable? (all costs counted)
+We backtested the two exact venues the vault integrates, from 2026-02-27 to 2026-11-07 (230 days):
+- Kamino's return is **realized** from its on-chain collateral exchange rate. Jupiter Lend's comes from its daily base APY; rewards are not counted.
+- Decisions use only data up to the day before.
+- Every cost is charged: 3 setup transactions, the first deposit, 2 transactions per switch, 6 closing transactions, and Kamino's rounding. Account rent is refunded on close, and we test that it comes back.
+
+| Vault size | Router net APY | Static Jupiter Lend | Static Kamino | Worst 30-day window (router) |
+|---|---|---|---|---|
+| $10 | **4.10%** (+$0.26) | 3.72% | 4.20% | +2.28% annualized |
+| $100 | **4.47%** | 3.86% | 4.35% | |
+| $1000 | **4.51%** | 3.87% | 4.36% | |
+
+All 200 rolling 30-day windows were positive. At $10, fixed fees eat most of the routing edge: the router beats Jupiter Lend but trails static Kamino by 0.1 percentage points. From $100 up, it beats both.
+
+Before this, we tested short-horizon SOL trading strategies the same way: 303 configurations with costs, plus walk-forward and an ensemble. None was reliably profitable after costs, so we didn't ship one as a "money maker". The research is in the repo.
 
 ## How we built it
-- **On-chain:** Anchor 1.2 (Rust). `sentinel_vault` (policy, CPI guard, balance-delta accounting, decision log) and `mock_swap` (devnet/localnet stand-in for Jupiter, priced from live mainnet data). 11 integration tests run against `solana-test-validator`.
+- **On-chain:** Anchor 1.2 (Rust).
+  - `sentinel_vault` provides `rebalance` with a venue whitelist, measured deltas, rate limits, owner pause/withdraw and close instructions. It still has the earlier guarded `swap` for the trading agent.
+  - **11 tests run on a local mainnet fork**: `solana-test-validator` clones the production Jupiter Lend Earn, Jupiter Liquidity and Kamino Lend programs and their USDC reserve accounts. The vault CPIs into the real lending code.
+  - 11 more tests cover the swap guard.
 - **Agent:** TypeScript, `@solana/web3.js`, `@anchor-lang/core`.
-  - Price feed: one `getMultipleAccounts` call reads the Orca Whirlpool `sqrt_price` and the Pyth `PriceUpdateV2`.
-  - Strategy: a pure dual-mode function (breakout / mean reversion) with ATR exits, shared byte-for-byte by the backtester and the live loop.
-  - Execution: priority fees, `skipPreflight`, and the decision log, price post and guarded swap packed into a single transaction.
-- **AI:** Claude via the Anthropic SDK with structured outputs (Zod schema → `messages.parse`). Parameter patches are clamped to declared bounds. It falls back to the rule-based regime on any error.
-- **Data and evaluation:** a 7-day 1-minute replay backtester with pessimistic intra-bar ordering, plus a walk-forward split (tune on 5 days, test on 2).
-- **Dashboard:** a single HTML page showing live candles, trigger levels, fills, vault state, latency and the AI decision log with explorer links.
-
-## Measured results
-- Tick → signed transaction sent: **18–22 ms**. Sent → confirmed: **196–335 ms** (local validator).
-- Backtest, last 7 days: **−0.97%** vs. **−5.4%** buy-and-hold. Out-of-sample last 2 days: **−0.09%** vs. **−6.1%**. We report the losing numbers on purpose. The grid-tuned parameters did worse out of sample, so we ship the defaults.
+  - Jupiter Lend instructions are built with `@jup-ag/lend`. Kamino instructions are built by hand from the klend IDL: `refresh_reserve`, `deposit_reserve_liquidity`, `redeem_reserve_collateral`.
+  - The vault is valued on-chain: Jupiter `convertToAssets`, and Kamino reserve supply ÷ collateral mint supply.
+- **AI:** Claude through the Anthropic SDK with structured outputs (Zod schema → `messages.parse`). Without a key, or on any error, it falls back to the rule's proposal.
+- **Data:** the Kamino API (exchange-rate history) and DefiLlama (Jupiter Lend APY) for the trailing rates.
+- **Dashboard:** vault value, net PnL after every fee, allocation, venue yields, and the decision log with tx links.
 
 ## Challenges
-- An LLM is far too slow for the order path. We split the agent into a slow brain (regime and bounds) and a fast brain (precomputed levels, compare-only per tick).
-- We wanted the agent unable to lie about fills. The vault ignores the agent's numbers and measures its own token balances around the CPI.
-- Jupiter has no devnet liquidity. We built a small mock AMM that the vault treats exactly like Jupiter (same CPI path), priced from the live mainnet pool.
-- The Pyth sponsored feed only updates every few seconds. We switched the tick source to the Orca pool account, which changes every slot it trades, and kept Pyth as an oracle deviation guard.
+- **Making "profitable" honest.** At $10, one transaction fee is about a day of interest. The router therefore prices every move. It never writes "hold" decisions on-chain, because that alone would cost more than the vault earns; their hashes stay in the journal. Setup rent is made refundable with close instructions.
+- **Testing against real protocols without real money.** We forked mainnet locally: cloned programs, reserves and oracle accounts, with the owner's USDC balance injected into the fork's ledger. The same code then runs against mainnet unchanged.
+- **Kamino's SDK uses `@solana/kit`; the agent uses web3.js v1.** We built Kamino instructions from the IDL and used the SDK only to decode the reserve.
+- **A generic "CPI anything" vault is dangerous.** We pinned it down to program + receipt mint pairs and the vault's own accounts.
 
 ## What's next
-Mainnet run with 10 USDC through Jupiter, Jito bundles, an unrealized-loss check using an on-chain Pyth read inside `swap`, a perps venue for shorts, and a Blink so the owner can pause or withdraw from any wallet.
+Mainnet with real USDC: deploy the program and fund the vault. More venues (Drift, marginfi, Jupiter Lend JupUSD with a peg check). Utilization and withdrawal-liquidity checks on-chain. A Blink so the owner can pause or withdraw from any wallet.
 
 ## Tracks
 Top 3 Overall, AI Track, DeFi Track, Best Beginner Hack (first Solana hackathon).
 
 ## Built with
-solana, anchor, rust, typescript, jupiter, pyth, orca, claude, anthropic-sdk, zod
+solana, anchor, rust, typescript, jupiter-lend, kamino, claude, anthropic-sdk, zod, defillama

@@ -1,19 +1,17 @@
 # Demo video script (about 2.5 minutes)
 
-**Setup before recording** (three terminals plus a browser):
-1. `npm run validator`
-2. `npm run deploy:local`, then `npm run agent -- --mode local --profile demo`
-3. Leave a third terminal free for `npm run demo:guard -- local`
-4. Open http://localhost:8787. For a guaranteed trade on camera, use `--profile smoke` instead of `demo`.
+**Setup before recording** (two terminals plus a browser):
+1. `npm run validator:fork` (a local mainnet fork with the real Jupiter Lend and Kamino programs)
+2. `npm run yield:deploy -- --mode fork`, then `npm run yield -- --mode fork --decide-minutes 1 --tick-seconds 5`
+3. Open http://localhost:8788
+4. Keep `npm run test:fork` ready in a second terminal. Run it on a fresh fork (`scripts/restart-fork.sh`), because it uses the same owner key.
 
 | Time | Screen | Say |
 |---|---|---|
-| 0:00 | Dashboard | "Autonomous trading agents are great until the AI gets tricked. SolSentinel is an AI trader whose risk limits are enforced by a Solana program, not by the AI's good behavior." |
-| 0:15 | Price card, feed pill | "Prices come straight from chain: the Orca SOL/USDC pool every slot, cross-checked against Pyth, in one RPC call." |
-| 0:30 | Brain decisions panel | "Claude is the slow brain. Every 10 minutes it picks the regime and can adjust parameters within hard bounds. It never places orders, and every decision is hashed and logged on-chain." |
-| 0:50 | Levels panel, chart lines | "The fast brain precomputes trigger levels each minute and compares every tick against them, so no AI call sits in the order path." |
-| 1:05 | Trades table, latency card | "Here's a trade: about 20 ms from tick to signed transaction, a few hundred ms to confirmation. The decision log, price and guarded swap are one atomic transaction." Click the tx link. |
-| 1:25 | Vault panel | "The money sits in the Sentinel Vault, an Anchor program. Per-trade cap, cooldown, trades per day, slippage floor, daily-loss circuit breaker. The vault measures its own balances around the swap, so the agent can't misreport fills." |
-| 1:45 | Terminal: `npm run demo:guard -- local` | "Now pretend the LLM was prompt-injected and told to drain the vault. Withdraw: blocked. All-in buy: blocked. Swap through another program: blocked. Bad fill: blocked. Rapid fire: blocked. One small trade inside the policy is all it gets." |
-| 2:10 | README backtest table | "We're honest about the strategy: over the last week it lost 1% while SOL fell 5 to 6%. The point isn't a magic strategy. It's a system you can safely hand an autonomous strategy." |
-| 2:25 | Repo | "Anchor program, 11 passing tests, TypeScript agent, open source. Thanks!" |
+| 0:00 | Dashboard | "Idle USDC earns nothing, and handing an AI your wallet is scary. SolSentinel is an AI yield agent that can only do one thing: move your USDC between whitelisted Solana lending pools, enforced by a Solana program." |
+| 0:15 | Venue yields card | "It watches Jupiter Lend and Kamino. Kamino's yield is measured from its on-chain exchange rate. The router holds the best 7-day realized yield and only switches when 14 days of extra yield pays for the transactions." |
+| 0:35 | Decision table | "Claude reviews every proposal and can approve, hold, or pull back to idle USDC if a pool looks unsafe. It can't invent a destination. Each decision is hashed, and the hash goes on-chain with the move." Click the tx link. |
+| 0:55 | Allocation + value cards | "This is a mainnet fork: the real Jupiter Lend program took our 10 USDC and gave the vault jlUSDC. Net PnL counts every fee, including setup." |
+| 1:15 | Terminal: `npm run test:fork` | "Now a compromised agent. A non-whitelisted program: rejected. Sending the receipt to the wrong account: rejected. Lying about min-out: rejected. Churning to burn fees: rate-limited. Depositing while paused: blocked, but withdrawing to safety still works. And it can never withdraw. Then the owner unwinds everything and gets every lamport of rent back." |
+| 1:50 | SUBMISSION.md results table | "Is it profitable after all costs? Over 230 days on these exact two venues: 4.1% net at $10 and 4.5% at $1000. Every 30-day window was positive. We also tried short-term SOL trading strategies, and none survived costs, so we didn't ship one." |
+| 2:15 | Repo | "Anchor program, mainnet-fork tests against real protocols, TypeScript agent with Claude. Thanks!" |

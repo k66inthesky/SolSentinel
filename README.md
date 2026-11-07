@@ -1,5 +1,48 @@
 # SolSentinel
 
+**An AI agent that earns stablecoin yield on its own, inside a Solana vault that only lets it move your USDC between whitelisted lending pools.**
+
+## SolSentinel Yield (main submission)
+
+- **What it does:** USDC sits in the Sentinel Vault, a PDA. The agent routes it between **Jupiter Lend Earn** and **Kamino Lend**, holding the venue with the best trailing 7-day realized yield. It switches only when 14 days of extra yield pays for both transactions.
+- **Claude:** reviews each proposal and can approve, hold, or exit to idle USDC.
+- **What the vault enforces:**
+  - only `rebalance`, and only into a whitelisted (program, receipt mint) pair;
+  - funds stay in the vault's own accounts;
+  - measured `max_in` / `min_out`;
+  - moves per day and a minimum interval between moves;
+  - pause blocks deposits, while withdrawals to USDC always work;
+  - only the owner can withdraw;
+  - every account can be closed for a full rent refund.
+
+![dashboard](docs/yield-dashboard.png)
+
+**Backtest of these exact two venues, 2026-02-27 → 2026-11-07, every fee counted** (`research/yield/router2.py`, output in `router2.out`):
+
+| Vault | Router net APY | Jupiter Lend only | Kamino only |
+|---|---|---|---|
+| $10 | 4.10% | 3.72% | 4.20% |
+| $100 | 4.47% | 3.86% | 4.35% |
+| $1000 | 4.51% | 3.87% | 4.36% |
+
+All 200 rolling 30-day windows were positive. At $10 the fixed fees eat most of the routing edge.
+
+```bash
+npm run build:programs
+npm run validator:fork                 # mainnet fork: real Jupiter Lend, Jupiter Liquidity, Kamino Lend programs + USDC reserves
+npm run test:fork                      # 11 tests: deposits/withdrawals through the vault into the real protocols + attack cases
+scripts/restart-fork.sh && npm run yield:deploy -- --mode fork
+npm run yield -- --mode fork --decide-minutes 1   # dashboard on http://localhost:8788
+```
+
+Mainnet needs three things: deploy the program (about 1.9 SOL of refundable program rent), fund `~/.config/solana/id.json` with USDC plus a little SOL, and run `npm run yield:deploy -- --mode mainnet --usdc 10`, then `npm run yield -- --mode mainnet`.
+
+Files: `programs/sentinel_vault` (`rebalance`, `init_yield`, `close_*`), `agent/src/{router,yield-agent,yield-chain,yield-brain,jlend,kamino,yield-deploy}.ts`, `agent/test/yield-fork.test.ts`, `dashboard/yield.html`.
+
+---
+
+## Earlier component: guarded SOL/USDC trading agent
+
 **An autonomous AI trading agent that cannot rug you, because its risk limits live on-chain.**
 
 SolSentinel trades SOL/USDC on its own. A fast rule engine reacts to on-chain prices within one RPC round trip, and Claude supervises it every few minutes. The new part is the **Sentinel Vault**, an Anchor program that holds the funds. The agent key can trade through the vault but can never withdraw. Every swap is checked against the owner's policy: per-trade cap, cooldown, trades per day, slippage floor, a daily-loss circuit breaker and a whitelisted swap program. The vault checks fills by reading its own token balances before and after the CPI, so the agent cannot misreport them. Every AI decision is hashed and logged on-chain.

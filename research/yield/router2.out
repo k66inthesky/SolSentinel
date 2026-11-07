@@ -1,0 +1,19 @@
+237 common days 2026-02-27 -> 2026-11-07;  tx cost $0.00086
+
+vault $10:
+  jlend   net APY  3.72%   net PnL $+0.2326 over 230 days   switches 0
+  kamino  net APY  4.20%   net PnL $+0.2629 over 230 days   switches 0
+  router  net APY  4.10%   net PnL $+0.2565 over 230 days   switches 6
+
+vault $100:
+  jlend   net APY  3.86%   net PnL $+2.4132 over 230 days   switches 0
+  kamino  net APY  4.35%   net PnL $+2.7165 over 230 days   switches 0
+  router  net APY  4.47%   net PnL $+2.7919 over 230 days   switches 8
+
+vault $1000:
+  jlend   net APY  3.87%   net PnL $+24.2197 over 230 days   switches 0
+  kamino  net APY  4.36%   net PnL $+27.2529 over 230 days   switches 0
+  router  net APY  4.51%   net PnL $+28.2068 over 230 days   switches 8
+jlend   worst 30d window +2.28% ann.  best +6.05%  negative windows 0/200
+kamino  worst 30d window +1.91% ann.  best +5.89%  negative windows 0/200
+router  worst 30d window +2.28% ann.  best +5.89%  negative windows 0/200
