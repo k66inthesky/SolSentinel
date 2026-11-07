@@ -9,3 +9,6 @@ test-ledger
 /data/
 .ledger
 *.log
+.fork/
+.fork.log
+.fork-resume.log
